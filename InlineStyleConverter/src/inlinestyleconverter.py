@@ -18,7 +18,9 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 
 # 		x = re.sub(r"<\s*br\s*>", "<br/>", t)  # 閉じられていないタグを閉じて、XMLにする。
 		x = html2xml(subhtml[0])
+		x = x.replace("\n", "")  # デバッグ用。
 		
+		x = "<root>{}</root>".format(x)
 		root = ElementTree.XML(x)  # ElementTreeのElementにする。
 		parent_map = parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグは除く。
 		style_nodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
@@ -39,25 +41,34 @@ def html2xml(s):
 	
 	txt = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
 	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"
-	optionalendtags = "li", "dt", "dd", "p", "tr", "td", "th", "rt", "rp", "optgroup", "option", "thread", "tfoot"
+# 	optionalendtags = "li", "dt", "dd", "p", "tr", "td", "th", "rt", "rp", "optgroup", "option", "thread", "tfoot"
 # 	optionaltags = "html", "head", "body", "tbody", "colgroup"
-	noend_regex = re.compile("|".join([r"(?<=<)\s*?{}.*?[^\/](?=>)".format(i) for i in noendtags]))
-	txt = noend_regex.sub(lambda m: "".join([m.group(0).strip(), " /"]), txt)
-	optionalend_regex = re.compile("|".join([r"(?<=<)\s*?({0})(.*?>.*?)<(?!/{0})".format(i) for i in optionalendtags]), flags=re.DOTALL)
-	txt = optionalend_regex.sub(repl, txt)
+# 	noend_regex = re.compile("|".join([r"(?<=<)\s*?{}.*?[^\/]?(?=>)".format(i) for i in noendtags]))
+# 	txt = noend_regex.sub(lambda m: "".join([m.group(0).strip(), " /"]), txt)
+# 	optionalend_regex = re.compile("|".join([r"(?<=<)\s*?({0})(.*?>.*?)<(?!/{0})".format(i) for i in optionalendtags]), flags=re.DOTALL)
+# 	txt = optionalend_regex.sub(repl, txt)
+	
+	noend_regex = re.compile("|".join([r"(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))
+	txt = noend_regex.sub(repl, txt)
 	
 	
-	print(txt)
+# 	print(txt)
 		
 	return txt
+# def repl(m):
+# 	tag = m.group(1)
+# 	txt = m.group(2).rstrip()
+# 	if re.search(r"<\s*?\/\s*?{}".format(tag), txt):
+# 		new = m.group(0)
+# 	else:
+# 		new = "{0}{1}</{0}><".format(tag, txt)
+# 	return new
 def repl(m):
-	tag = m.group(1)
-	txt = m.group(2).rstrip()
-	if re.search(r"<\s*?\/\s*?{}".format(tag), txt):
-		new = m.group(0)
+	e = m.group(0).rstrip()
+	if e.endswith("/"):
+		return e
 	else:
-		new = "{0}{1}</{0}><".format(tag, txt)
-	return new
+		return "".join([e, "/"])
 	
 	
 
@@ -65,4 +76,5 @@ def repl(m):
 
 
 if __name__ == "__main__": 
-	inlinestyleconverter("source.html", r"<body>.*<\/body>" )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。
+# 	inlinestyleconverter("source.html", r"<body>.*<\/body>" )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。
+	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。rootがあるようにしないとjunk after document elementがでる。
