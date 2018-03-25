@@ -16,7 +16,7 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		x = html2xml(subhtml[0])  # 最初にマッチングしたノードのみxmlにする処理をする
 		x = "<root>{}</root>".format(x)  # 抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
 		root = ElementTree.XML(x)  # ElementTreeのElementにする。
-		parent_map = parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグは除く。
+		parent_map = parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 		style_nodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
 		
 			
