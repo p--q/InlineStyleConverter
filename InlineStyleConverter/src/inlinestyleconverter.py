@@ -15,14 +15,41 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 			sys.exit()	
 		x = html2xml(subhtml[0])  # 最初にマッチングしたノードのみxmlにする処理をする
 		x = "<root>{}</root>".format(x)  # 抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
-		root = ElementTree.XML(x)  # ElementTreeのElementにする。
+		try:
+			root = ElementTree.XML(x)  # ElementTreeのElementにする。HTMLをXMLに変換して渡さないといけない。
+		except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
+			errorLines(e, x)  # エラー部分の出力。
 		parent_map = parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 		style_nodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
 		
 			
-			
-			
-			
+def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
+	print(e, file=sys.stderr)
+	outputs = []
+	r, c = e.position  # エラー行と列の取得。行は1から始まる。
+	lines = txt.split("\n")  # 行のリストにする。
+	errorline = lines[r-1]  # エラー行を取得。
+	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。			
+	if lastcolumn>400:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
+		firstcolumn = c - 200
+		firstcolumn = 0 if firstcolumn<0 else firstcolumn
+		endcolumn = c + 200
+		endcolumn = lastcolumn if endcolumn>lastcolumn else endcolumn			
+		outputs.append("{}c{}to{}:  {}".format(r, firstcolumn, c-1, errorline[firstcolumn:c]))
+		outputs.append("{}c{}to{}:  {}".format(r, c, endcolumn, errorline[c:endcolumn]))
+	else:   # エラー行が400列以下のときは上下2行も出力。
+		lastrow = len(lines) - 1
+		firstrow = r - 2
+		firstrow = 0 if firstrow<0 else firstrow
+		endrow = r + 2
+		endrow = lastrow if endrow>lastrow else endrow
+		if endrow-firstrow<5:  # 5行以下のときは5行表示する。
+			firstrow = endrow - 5
+			firstrow = 0 if firstrow<0 else firstrow
+		for i in range(firstrow, endrow+1):
+			outputs.append("{}:  {}".format(i+1, lines[i]))
+	print("\n".join(outputs))
+	sys.exit()			
 def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられていないタグを閉じる。
 	txt = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
 	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"  # ウェブブラウザで保存すると閉じられなくなるタグ。
