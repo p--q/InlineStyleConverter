@@ -3,8 +3,8 @@ import re
 import html
 import sys
 from xml.etree import ElementTree
-
-
+from xml.etree.ElementTree import Element
+from itertools import permutations
 def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えられていない時はすべてのノードについて実行する。
 	style_xpath = './/*[@style]'  # sytleのあるノードを取得するXPath。
 	with open(htmlfile, encoding="utf-8") as f:
@@ -20,46 +20,110 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
 			errorLines(e, x)  # エラー部分の出力。
 		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
-		element2CSSPath = csspathCreator(parent_map)
+# 		element2CSSPath = csspathCreator(parent_map)
 
-		stacks = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
-		while stacks:
-			n = stacks.pop()
-			csspath = element2CSSPath(n)
+		stylenodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
+		for n in stylenodes:
+			getElementXPath(parent_map, n)
+		
+# 		while stacks:
+# 			n = stacks.pop()
+# 			csspath = element2CSSPath(n)
 			
+def getElementXPath(parent_map, n):  # ノードのXPathパターンの作成。
+# 	xpaths = []
+	paths = []
+	while n in parent_map:  # 親ノードがあるときのみ実行。
+		tags = []
+		p = parent_map[n]  # 親ノードの取得。
+		tag = n.tag
+		tags.append(tag)
+		children = [i for i in list(p) if i.tag==tag]  # 親ノードの子ノードのうち同じタグのノードのリストを取得。p.iter()だとすべての要素が返ってしまう。
+		if len(children)>1:
+			pathindex = "[{}]".format(children.index(n)+1)  # 同じタグが複数あるときのみインデックスを表示。インデックスは1から始まる。
+			tags.append("{}{}".format(tag, pathindex))
+		idattr = n.get("id")
+		if idattr:
+			tags.append('[@id="{}"]'.format(idattr))
+		classattr = n.get("class")
+		if classattr:
+			classes = classattr.split(" ")
+			for i in range(1, len(classes)+1):
+				for c in permutations(classes, i):
+					tags.append('[@class="{}"]'.format(" ".join(c)))
+		paths.append(tags)
+		n = p
+# 	paths.append(["root"])
+	paths.reverse()  # 右に子が来るように逆順にする。
+	children = []
+	p = None
+	while paths:
+		parents = paths.pop()
+		for p in parents:
+			p.extend(children)
+		children = parents
+	root = p
+	
+
+	
+	
+	
+# 	idxpath = idElementXPath(n)
+# 	if idxpath:
+# 		return idxpath
+# 	else:
+# 		paths = []
+# 		while n is not None:
+# 			if n in parent_map:  # 親ノードがあるとき。
+# 				p = parent_map[n]  # 親ノードを取得。
+# 				idxpath = idElementXPath(p)
+# 				if idxpath:  # idがあるノードのときはそれ以上の親は追求しない。
+# 					paths.append(idxpath)
+# 					break
+# 				else:
+# 					children = [i for i in list(p) if i.tag==n.tag]  # 親ノードの子ノードのうち同じタグのノードのリストを取得。p.iter()だとすべての要素が返ってしまう。
+# 					pathindex = "[{}]".format(children.index(n)+1) if len(children)>1 else ""  # 同じタグが複数あるときのみインデックスを表示。インデックスは1から始まる。
+# 					paths.append("".join((n.tag, pathindex)))
+# 			else:  # 親ノードがないときはnがrootのとき。
+# 				paths.append(n.tag)
+# 				break
+# 			n = p  # 親の親を調べに行く。
+# 		return "/{}".format("/".join(reversed(paths))) if paths else None
+# def idElementXPath(n):
+# 	idprop = n.get("id")
+# 	return '//*[@id="{}"]'.format(idprop) if idprop else None		
 		
 		
-		
-def csspath2XPath(csspath):  # CSSパスをXPathに変換。
-	newpaths = ["./"]
-	paths = csspath.split(" ")
-	for path in paths:
-		if "#" in path:
-			newpaths = ['.//*[@id="{}"]'.format(path.split("#")[-1].split(".")[0])]
-		elif "." in path:
-			tag, *classnames = path.split(".")
-			newpaths.append('{}[@class="{}"]'.format(tag, " ".join(classnames)))
-		else:
-			newpaths.append(path)	
-	return "/".join(newpaths)				
-def csspathCreator(parent_map):	 # getParentNodeに渡したルートからのCSSパスを取得。	
-	def element2CSSPath(n):  # ノードのCSSパスを作成。
-		paths = []  # パスのリスト。
-		while n in parent_map:  # 親ノードがある間。
-			label = n.tag.split(":")[-1].lower()  # localName、つまりタブ名を小文字で取得。コロンがあればその前は無視する。
-			idprop = n.get("id")  # id属性があれば取得。
-			if idprop:  # id属性があれば#でつなげる。。
-				label = "".join((label, "#{}".format(idprop)))
-			classes = n.get("class")  # クラス属性があれば取得。
-			if classes:  # クラス属性があるときはドットでつなげる。
-				label = "".join((label, *[".{}".format(i) for i in classes.split(" ")]))		
-			paths.append(label)  # パスのリストに追加。
-			if "#" in label:  # id属性のあるノードまできたら終わる。
-				break
-			else:
-				n = parent_map[n]  # 親ノードを取得。
-		return " ".join(reversed(paths))  # 逆順にスペースでつなげてCSSパスにして返す。
-	return element2CSSPath
+# def csspath2XPath(csspath):  # CSSパスをXPathに変換。
+# 	newpaths = ["./"]
+# 	paths = csspath.split(" ")
+# 	for path in paths:
+# 		if "#" in path:
+# 			newpaths = ['.//*[@id="{}"]'.format(path.split("#")[-1].split(".")[0])]
+# 		elif "." in path:
+# 			tag, *classnames = path.split(".")
+# 			newpaths.append('{}[@class="{}"]'.format(tag, " ".join(classnames)))
+# 		else:
+# 			newpaths.append(path)	
+# 	return "/".join(newpaths)				
+# def csspathCreator(parent_map):	 # getParentNodeに渡したルートからのCSSパスを取得。	
+# 	def element2CSSPath(n):  # ノードのCSSパスを作成。
+# 		paths = []  # パスのリスト。
+# 		while n in parent_map:  # 親ノードがある間。
+# 			label = n.tag.split(":")[-1].lower()  # localName、つまりタブ名を小文字で取得。コロンがあればその前は無視する。
+# 			idprop = n.get("id")  # id属性があれば取得。
+# 			if idprop:  # id属性があれば#でつなげる。。
+# 				label = "".join((label, "#{}".format(idprop)))
+# 			classes = n.get("class")  # クラス属性があれば取得。
+# 			if classes:  # クラス属性があるときはドットでつなげる。
+# 				label = "".join((label, *[".{}".format(i) for i in classes.split(" ")]))		
+# 			paths.append(label)  # パスのリストに追加。
+# 			if "#" in label:  # id属性のあるノードまできたら終わる。
+# 				break
+# 			else:
+# 				n = parent_map[n]  # 親ノードを取得。
+# 		return " ".join(reversed(paths))  # 逆順にスペースでつなげてCSSパスにして返す。
+# 	return element2CSSPath
 def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
 	print(e, file=sys.stderr)
 	outputs = []
