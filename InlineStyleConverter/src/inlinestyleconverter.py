@@ -3,8 +3,7 @@ import re
 import html
 import sys
 from xml.etree import ElementTree
-from xml.etree.ElementTree import Element
-from itertools import permutations
+from itertools import permutations, product
 def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えられていない時はすべてのノードについて実行する。
 	style_xpath = './/*[@style]'  # sytleのあるノードを取得するXPath。
 	with open(htmlfile, encoding="utf-8") as f:
@@ -13,56 +12,103 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		if not subhtml:
 			print("There is no html matching r'{}'.".format(pattern), file=sys.stderr)
 			sys.exit()	
-		x = html2xml(subhtml[0])  # 最初にマッチングしたノードのみxmlにする処理をする
-		x = "".join(["<root>", x, "</root>"]) # 抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
+		x = "<root>{}</root>".format(html2xml(subhtml[0])) # 最初にマッチングしたノードのみxmlにする処理をする。抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
 		try:
 			root = ElementTree.XML(x)  # ElementTreeのElementにする。HTMLをXMLに変換して渡さないといけない。
 		except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
 			errorLines(e, x)  # エラー部分の出力。
-		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
-# 		element2CSSPath = csspathCreator(parent_map)
-
-		stylenodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。
-		for n in stylenodes:
-			getElementXPath(parent_map, n)
+		getElementXPathIter = xpathiterCreator(root)
+		styles = set(i.get("style") for i in root.iterfind(style_xpath))  # style属性をもつノードのすべてからstyle属性をすべて取得する。iterfind()は直下以外の子ノードも返る。
+		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: ノードを返すジェネレーター、の辞書。
+		for style, nodeiter in stylenodedic.items():  # 各styleについて。
+			nodes = list(nodeiter)  # styleのあるノードのリストを取得。
+			if len(nodes)==1:  # ノードの数が1個の時。
+				
+				# とりあえずXPathを取得。
+				
+				# そのXPathでrootを検索してnodes[0]と一致すればそのCSSパスは合格。
+				# そのXPathをCSSパスに変換。
+				# 不合格ならばXPathのリストから合格するXPathを探す。
+				
+				
+				# 合格したXPathからCSSパスを取得。
+				
+				# idより上の階層は削る。
+				
+				
+# 				xpathiter = getElementXPathIter(nodes[0])  # このノードで取りうるXPathのロケーションパスのリストを返すイテレーターを取得。
+				pass
+				
+			else:  # 同じstyleを持つノードが複数ある時。
+				pass
 		
-# 		while stacks:
-# 			n = stacks.pop()
-# 			csspath = element2CSSPath(n)
+		
+		
+		
+		
+# 		stylenodes = root.findall(style_xpath)  # style属性をもつノードをすべて取得。iterfind()は直下以外の子ノードも返る。
+# 		
+# 		
+# 		
+# 		for n in stylenodes:  # style属性をもつ各ノードについて。
+# 			xpathiter = getElementXPathIter(n)  # このノードで取りうるXPathのロケーションパスのリストを返すイテレーターを取得。
+# 			for xpath in xpathiter:
+# 				print("/".join(xpath))
+# 				".//{}".format("/".join(xpath))
 			
-def getElementXPath(parent_map, n):  # ノードのXPathパターンの作成。
-# 	xpaths = []
-	paths = []
-	while n in parent_map:  # 親ノードがあるときのみ実行。
-		tags = []
-		p = parent_map[n]  # 親ノードの取得。
-		tag = n.tag
-		tags.append(tag)
-		children = [i for i in list(p) if i.tag==tag]  # 親ノードの子ノードのうち同じタグのノードのリストを取得。p.iter()だとすべての要素が返ってしまう。
-		if len(children)>1:
-			pathindex = "[{}]".format(children.index(n)+1)  # 同じタグが複数あるときのみインデックスを表示。インデックスは1から始まる。
-			tags.append("{}{}".format(tag, pathindex))
-		idattr = n.get("id")
-		if idattr:
-			tags.append('[@id="{}"]'.format(idattr))
-		classattr = n.get("class")
-		if classattr:
-			classes = classattr.split(" ")
-			for i in range(1, len(classes)+1):
-				for c in permutations(classes, i):
-					tags.append('[@class="{}"]'.format(" ".join(c)))
-		paths.append(tags)
-		n = p
+			
+			
+		
+
+	
+def xpathiterCreator(root):	
+	parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
+	pathdic = {}  # 作成したロケーションパスのキャッシュ。	
+	def _getPath(p, n):  # p: 親ノード。n: ノード、からnが取りうるロケーションパスのリストを返す。
+		path = []  # この階層での可能性のあるロケーションパスを入れるリスト。
+		tag = n.tag  # ノードのタグ。
+		path.append(tag)  # タグのみのパス。
+		children = [i for i in list(p) if i.tag==tag]  # 親ノードの子ノードの階層にあるノードのうち同じタグのノードのリストを取得。p.iter()だとすべての階層の要素が返ってしまう。
+		if len(children)>1:  # 同じタグのノードが同じ階層に複数ある時。
+			pathindex = "[{}]".format(children.index(n)+1)  # ノードの順位を取得。1から始まる。
+			path.append("{}{}".format(tag, pathindex))  # タグに順位をつけたパス。
+		idattr = n.get("id")  # id属性の取得。
+		if idattr:  # id属性がある時。
+			path.append('*[@id="{}"]'.format(idattr))  # idのパス。idの場合はタグは影響しないので*にする。
+		classattr = n.get("class")  # クラス属性の取得。
+		if classattr:  # クラス属性がある時。
+			classes = classattr.split(" ")  # クラスをリストにする。
+			for i in range(1, len(classes)+1):  # 順列の長さ。
+				for c in permutations(classes, i):  # 各順列について。
+					cls = '[@class="{}"]'.format(" ".join(c))  # クラスのあらゆる組み合わせのパス。
+					path.append('*{}'.format(cls))  # タグを特定しない。
+					path.append('{}{}'.format(tag, cls))  # タグを特定する。
+		return path	
+	def getElementXPathIter(n):  # ノードのすべてのXPathパターンを返すイテレーターを返す。ロケーションパスのタプルが返る。
+		paths = []  # ロケーションパスのリストを入れるリスト。
+		while n in parent_map:  # 親ノードがあるときのみ実行。
+			p = parent_map[n]  # 親ノードの取得。
+			path = pathdic.setdefault(n, _getPath(p, n))  # nが取りうるロケーションパスのリストを辞書に取得。
+			paths.append(path)  # この階層のロケーションパスのリストを取得。
+			n = p  # 上の階層について調べる。
+		paths.append(["./"])  # XPathの先頭のロケーションパスをリストで追加。
+		paths.reverse()  # 右に子が来るように逆順にする。
+		return product(*paths)  # pathsの要素のリストのすべての組み合わせを返すイテレーターを返す。
+	return getElementXPathIter
+
+	
+	
+	
 # 	paths.append(["root"])
-	paths.reverse()  # 右に子が来るように逆順にする。
-	children = []
-	p = None
-	while paths:
-		parents = paths.pop()
-		for p in parents:
-			p.extend(children)
-		children = parents
-	root = p
+# 	paths.reverse()  # 右に子が来るように逆順にする。
+# 	children = []
+# 	p = None
+# 	while paths:
+# 		parents = paths.pop()
+# 		for p in parents:
+# 			p.extend(children)
+# 		children = parents
+# 	root = p
 	
 
 	
@@ -124,6 +170,10 @@ def getElementXPath(parent_map, n):  # ノードのXPathパターンの作成。
 # 				n = parent_map[n]  # 親ノードを取得。
 # 		return " ".join(reversed(paths))  # 逆順にスペースでつなげてCSSパスにして返す。
 # 	return element2CSSPath
+
+
+
+
 def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
 	print(e, file=sys.stderr)
 	outputs = []
