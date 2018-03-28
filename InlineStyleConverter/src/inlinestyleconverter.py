@@ -21,40 +21,33 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		getElementXPathIter = xpathiterCreator(parent_map)
 		styles = set(i.get("style") for i in root.iterfind(style_xpath))  # style属性をもつノードのすべてからstyle属性をすべて取得する。iterfind()は直下以外の子ノードも返る。
 		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: ノードを返すジェネレーター、の辞書。
-		csspaths = []
-		for style, nodeiter in stylenodedic.items():  # 各styleについて。
-			nodes = list(nodeiter)  # styleのあるノードのリストを取得。
+		css = dict()  # キー: sytle属性の値、値: CSSセレクタ
+		for style, nodeiter in stylenodedic.items():  # 各style属性について。
+			nodes = list(nodeiter)  # このstyle属性のあるノードのリストを取得。
 			if len(nodes)==1:  # ノードの数が1個の時。
-				n = nodes[0]
-				for paths in getElementXPathIter(n):
+				n = nodes[0]  # このstyle属性のあるノードを取得。
+				for paths in getElementXPathIter(n):  # このノードを選択するロケーションパスのリストを取得。
 					path = "/".join(paths)  # XPathのロケーションパスを取得。
 					idsep = "*[@id="
 					if idsep in path:  # idのパスがあるときはidパス以降のみを使用。
-						paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # ロケーションパスのリストを取得。
+						paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # id属性のあるノードの子のロケーションパスのリストを取得。
 						xpath = ".//{}".format("/".join(paths))  # XPathにする。
-						xpathnodes = root.findall(xpath)  # 該当するノードを取得。XPathでは孫要素以降も取得される。
-						if n in xpathnodes:  # 目的のノードを発見できたとき。
+						xpathnodes = root.findall(xpath)  # 作成したXPathで該当するノードを取得してみる。XPathでは孫要素以降も取得される。
+						if n in xpathnodes:  # 目的のノードを取得できたとき。
 							xpathnodes.remove(n)  # 目的のノードを除外。
 							if xpathnodes:  # まだノードが残っている時。目的のノードと同じ階層かを調べる。
-								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードに一致するとき。
-									print("Could not create CSS selector for one node only.\nstyle='{}'".format(style), file=sys.stderr)
+								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードが一致するときは同じ階層に他のノードがあるので不適格。(これはありえないはず)
+									print("Could not create the CSS selector to select only one node having\nstyle='{}'".format(style), file=sys.stderr)
+							# CSSパスが短く出来ないか真ん中を削ってみる。
+									
 									
 							
-							csspaths.append(paths2CSSOneNode(paths))  # 発見ノードが階層にひとつだけのときCSSパスとして採用。
-							
-							print(paths2CSSOneNode(paths))
-							
-							break
-						else:
-							print("Could not create CSS selector for one node.\nstyle='{}'".format(style), file=sys.stderr)		
+							css[style] = paths2CSSOneNode(paths)  # 動作確認したXPathをCSSパスとして採用。		
+							break  # ループをでる。
+						else:  # XPathで元のノードが取得できなかったとき(これはありえないはず)。
+							print("Could not create the CSS selector to select one node having\nstyle='{}'".format(style), file=sys.stderr)		
 					else:  # idのパスがないとき。
-						# すべてのパターンについてノードを絞れるパターンを見つける。
-						# 見つけたパターンについて一番短いものに決定。
-						pass
-						
-						
-					
-					
+						print("This script does not create a CSS selector as it can not find a node with id attribute up to the root.", file=sys.stderr)
 			else:  # 同じstyleを持つノードが複数ある時。
 				pass
 		
@@ -113,13 +106,18 @@ def xpathiterCreator(parent_map):
 			path.append("{}{}".format(tag, pathindex))  # タグに順位をつけたパス。		
 		path.append(tag)  # タグのみのパス。			
 		return path	 # id、タグ+class、class、タグ[番号]、タグ、の順にする。
-	def getElementXPathIter(n):  # ノードのすべてのXPathパターンを返すイテレーターを返す。ロケーションパスのタプルが返る。
+	def getElementXPathIter(n, r=None):  # ノードのすべてのXPathパターンを返すイテレーターを返す。ロケーションパスのタプルが返る。rは遡る階層数。
 		paths = []  # ロケーションパスのリストを入れるリスト。
+		c = 1  # 階層。1段階から始まる。
 		while n in parent_map:  # 親ノードがあるときのみ実行。
 			p = parent_map[n]  # 親ノードの取得。
 			path = pathdic.setdefault(n, _getPath(p, n))  # nが取りうるロケーションパスのリストを辞書に取得。
 			paths.append(path)  # この階層のロケーションパスのリストを取得。
 			n = p  # 上の階層について調べる。
+			if r is not None:
+				c += 1
+				if c==r:  # 階層番号に達したらwhile文を出る。
+					break
 # 		paths.append(["./"])  # XPathの先頭のロケーションパスをリストで追加。
 		paths.reverse()  # 右に子が来るように逆順にする。
 		return product(*paths)  # pathsの要素のリストのすべての組み合わせを返すイテレーターを返す。
