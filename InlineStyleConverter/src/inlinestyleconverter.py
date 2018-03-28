@@ -21,58 +21,34 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		getElementXPathIter = xpathiterCreator(parent_map)
 		styles = set(i.get("style") for i in root.iterfind(style_xpath))  # style属性をもつノードのすべてからstyle属性をすべて取得する。iterfind()は直下以外の子ノードも返る。
 		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: ノードを返すジェネレーター、の辞書。
+		csspaths = []
 		for style, nodeiter in stylenodedic.items():  # 各styleについて。
 			nodes = list(nodeiter)  # styleのあるノードのリストを取得。
 			if len(nodes)==1:  # ノードの数が1個の時。
-				path = "/".join(next(getElementXPathIter(nodes[0])))  # XPathのロケーションパスを取得。
-				idsep = "*[@id="
-				if idsep in path:  # idのパスがあるときはidパス以降のみを使用。
-					paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # ロケーションパスのリストを取得。
-					xpath = ".//{}".format("/".join(paths))  # XPathにする。
-					xpathnodes = root.findall(xpath)  # 該当するノードを取得。XPathでは孫要素以降も取得される。
-					if nodes[0] in xpathnodes:
-						xpathnodes.remove(nodes[0])
-						if xpathnodes:
-							[parent_map[i] for i in xpathnodes]  # 各ノードの親ノードを取得。
-							
-						
-					else:
-						
+				n = nodes[0]
+				for paths in getElementXPathIter(n):
+					path = "/".join(paths)  # XPathのロケーションパスを取得。
+					idsep = "*[@id="
+					if idsep in path:  # idのパスがあるときはidパス以降のみを使用。
+						paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # ロケーションパスのリストを取得。
+						xpath = ".//{}".format("/".join(paths))  # XPathにする。
+						xpathnodes = root.findall(xpath)  # 該当するノードを取得。XPathでは孫要素以降も取得される。
+						if n in xpathnodes:  # 目的のノードを発見できたとき。
+							xpathnodes.remove(n)  # 目的のノードを除外。
+							if xpathnodes:  # まだノードが残っている時。目的のノードと同じ階層かを調べる。
+								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードに一致するとき。
+									print("Could not create CSS selector for one node only.\nstyle='{}'".format(style), file=sys.stderr)
+							csspaths.append(paths2CSSOneNode(paths))  # 発見ノードが階層にひとつだけのときCSSパスとして採用。
+							break
+						else:
+							print("Could not create CSS selector for one node.\nstyle='{}'".format(style), file=sys.stderr)		
+					else:  # idのパスがないとき。
+						# すべてのパターンについてノードを絞れるパターンを見つける。
+						# 見つけたパターンについて一番短いものに決定。
 						
 						
 					
-					if len(xpathnodes)>1:  # 複数のノードが取得できた時。
-						
-						
-						
-						
 					
-					
-					csspath = paths2OneNodeCSS(paths)
-					
-# 					csspath = ">".join([i.replace('*[@id="', "#").replace('*[@class="', ".").split('"')[0] if "@" in i else i for i in paths])
-					
-# 					csspath = "{}{}".format(idsep, ">".join(paths))
-					pass
-			
-				
-				
-				# とりあえずXPathを取得。
-				
-				
-				# そのXPathでrootを検索してnodes[0]と一致すればそのCSSパスは合格。
-				# そのXPathをCSSパスに変換。
-				# 不合格ならばXPathのリストから合格するXPathを探す。
-				
-				
-				# 合格したXPathからCSSパスを取得。
-				
-				# idより上の階層は削る。
-				
-				
-# 				xpathiter = getElementXPathIter(nodes[0])  # このノードで取りうるXPathのロケーションパスのリストを返すイテレーターを取得。
-			
-				
 			else:  # 同じstyleを持つノードが複数ある時。
 				pass
 		
@@ -89,7 +65,7 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 			
 			
 			
-def paths2OneNodeCSS(paths):  # paths: ロケーションパスのリスト。
+def paths2CSSOneNode(paths):  # paths: ロケーションパスのリスト。
 	csspath = []
 	for path in paths:
 		if "*[@id=" in path:
