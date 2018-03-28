@@ -39,7 +39,9 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードが一致するときは同じ階層に他のノードがあるので不適格。(これはありえないはず)
 									print("Could not create the CSS selector to select only one node having\nstyle='{}'".format(style), file=sys.stderr)
 							# CSSパスが短く出来ないか真ん中を削ってみる。
-									
+							# pathsの最初と最後の要素をスペースでつなぐ。
+							 # ダメなら最後の要素だけノードからパターンを再取得してチャレンジ。
+							# ダメなら最初はスペース、最後の2つの要素を>というようにする。	
 									
 							
 							css[style] = paths2CSSOneNode(paths)  # 動作確認したXPathをCSSパスとして採用。		
