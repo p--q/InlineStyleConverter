@@ -38,13 +38,19 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 							if xpathnodes:  # まだノードが残っている時。目的のノードと同じ階層かを調べる。
 								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードに一致するとき。
 									print("Could not create CSS selector for one node only.\nstyle='{}'".format(style), file=sys.stderr)
+									
+							
 							csspaths.append(paths2CSSOneNode(paths))  # 発見ノードが階層にひとつだけのときCSSパスとして採用。
+							
+							print(paths2CSSOneNode(paths))
+							
 							break
 						else:
 							print("Could not create CSS selector for one node.\nstyle='{}'".format(style), file=sys.stderr)		
 					else:  # idのパスがないとき。
 						# すべてのパターンについてノードを絞れるパターンを見つける。
 						# 見つけたパターンについて一番短いものに決定。
+						pass
 						
 						
 					
