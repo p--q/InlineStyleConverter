@@ -20,20 +20,25 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 		getElementXPathIter = xpathiterCreator(parent_map)
 		styles = set(i.get("style") for i in root.iterfind(style_xpath))  # style属性をもつノードのすべてからstyle属性をすべて取得する。iterfind()は直下以外の子ノードも返る。
-		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: ノードを返すジェネレーター、の辞書。
+		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: そのstyle属性のあるノードを返すジェネレーター、の辞書。
 		css = dict()  # キー: sytle属性の値、値: CSSセレクタ
 		for style, nodeiter in stylenodedic.items():  # 各style属性について。
 			nodes = list(nodeiter)  # このstyle属性のあるノードのリストを取得。
 			if len(nodes)==1:  # ノードの数が1個の時。
 				n = nodes[0]  # このstyle属性のあるノードを取得。
 				for paths in getElementXPathIter(n):  # このノードを選択するロケーションパスのリストを取得。
-					path = "/".join(paths)  # XPathのロケーションパスを取得。
+					path = "/".join(paths)  # XPathのロケーションパスのリストを/で結合。
 					idsep = "*[@id="
 					if idsep in path:  # idのパスがあるときはidパス以降のみを使用。
-						paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # id属性のあるノードの子のロケーションパスのリストを取得。
+						paths = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1]).split("/")  # id属性のあるノードの子のロケーションパスのリストを取得。"*[@id="で分割して最後の要素を取得して"*[@id="を先頭に追加し直す。
 						xpath = ".//{}".format("/".join(paths))  # XPathにする。
-						xpathnodes = root.findall(xpath)  # 作成したXPathで該当するノードを取得してみる。XPathでは孫要素以降も取得される。
+# 						path = "{}{}".format(idsep, path.rsplit(idsep, 1)[-1])  # id属性のあるノードの子のロケーションパスのリストを取得。"*[@id="で分割して最後の要素を取得して"*[@id="を先頭に追加し直す。
+# 						xpath = ".//{}".format(path)  # ルートノードからのXPathを作成。
+
+						xpathnodes = root.findall(xpath)  # 作成したXPathで該当するノードを取得してみる。
 						if n in xpathnodes:  # 目的のノードを取得できたとき。
+							
+							
 							xpathnodes.remove(n)  # 目的のノードを除外。
 							if xpathnodes:  # まだノードが残っている時。目的のノードと同じ階層かを調べる。
 								if parent_map[n] in [parent_map[i] for i in xpathnodes]:  # 各ノードの親ノードが一致するときは同じ階層に他のノードがあるので不適格。(これはありえないはず)
