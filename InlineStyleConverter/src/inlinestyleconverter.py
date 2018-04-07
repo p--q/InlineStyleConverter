@@ -24,52 +24,138 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		cssdic = dict()  # キー: sytle属性の値、値: CSSセレクタ
 		for style, nodeiter in stylenodedic.items():  # 各style属性について。
 			nodes = set(nodeiter)  # このstyle属性のあるノードの集合を取得。
-			for n in nodes:  # ノードの一つを元にXPathを作成する。
-				steplists = createStepLists(n)  # このノードのロケーションステップのリストのリストを取得。このノードからルート方向のパスの順のリスト。
-				for step in steplists[0]:  # このノードの階層のローケーションパスについて。
-					xpath = ".//{}".format(step)  # XPathの作成。
+			maxloc = 3
+			xpaths = getStyleXPaths(root, nodes, maxloc, createStepLists)
+			if xpaths:
+				cssdic[style] = xpaths
+			else:
+				print("Can not cover all nodes having styles below with up to {} location step(s).".format(maxloc), file=sys.stderr)	
+				print("{}".format(style))
+				sys.exit()
+		pass
+			
+			
+			
+# 			steplists = createStepLists(nodes[0])  # まずひとつのノードについてロケーションステップのリストのリストを取得。ロケーションステップの順は逆になっている。
+# 			for num in range(3):  # ロケーションパスが3個までは調べる。
+# 				xpath = getStyleXPath(root, nodes, steplists, num)
+		
+					
+			
+			
+			
+# 			while nodes:  # ノードがあるとき。
+# 				steplists = createStepLists(nodes.pop())  # ノードのロケーションステップのリストのリストを取得。ロケーションステップの順は逆になっている。
+# 
+# 				xpath = getStyleXPath(root, nodes, steplists, num)
+# 
+# 				
+# 				for step in steplists[0]:  # このノードの階層のローケーションパスについて。
+# 					
+# 					xpath = ".//{}".format(step)  # XPathの作成。
+# 					xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 					if nodes==xpathnodes:  # XPathで同じstyle属性をもつノードすべてが取得できたときはこのXPathを採用する。
+# 						cssdic[style] = xpath
+# 						break
+# 				else:  # 1個のロケーションパスではすべてのノードが取得できなかったとき。
+# 					for steplist in steplists[1:]:  # 上の階層のロケーションパスの一つと組み合わせる。
+# 						for steps in product(steplist, steplists[0]):
+# 							xpath = ".//{}//{}".format(*steps)  # XPathの作成。
+# 							xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 							if nodes==xpathnodes:
+# 								cssdic[style] = xpath
+# 								break
+# 					if style in cssdic:  # XPathが取得されているとき。
+# 						break
+# 					else:  # 2つのロケーションパスの組み合わせではすべてのノードを取得できなかったとき。
+# 						
+# 						
+# 						for steps in product(steplists[1], steplists[0]):  # 1つ上の階層のロケーションパスのみとの組み合わせについて。
+# 							xpath = ".//{}/{}".format(*steps)  # XPathの作成。
+# 							xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 							if nodes==xpathnodes:
+# 								cssdic[style] = xpath
+# 								break		
+# 					if not style in cssdic:  # まだXPathが取得されていないとき。
+# 						
+# 						
+# 						for steplist in steplists[2:]:  # 3組のロケーションパスのXPathの作成。
+# 							for steps in product(steplist, steplists[1], steplists[0]): 
+# 								xpath = ".//{}//{}/{}".format(*steps)  # XPathの作成。				
+# 								xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 								if nodes==xpathnodes:
+# 									cssdic[style] = xpath
+# 									break	
+# 						if style in cssdic:  # XPathが取得されているとき。
+# 							break				
+# 						else:
+# 							for steps in product(steplist[2], steplists[1], steplists[0]): 
+# 								xpath = ".//{}/{}/{}".format(*steps)  # XPathの作成。				
+# 								xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 								if nodes==xpathnodes:
+# 									cssdic[style] = xpath
+# 									break						
+# 					if not style in cssdic:  # まだXPathが取得されていないとき。
+# 						print("Could not create XPath for {}.".format(style))			
+
+
+
+
+# def getStyleXPath(root, nodes, steplists, num):	# root: ルートノード、nodes, 同じstyle属性をもつノードの集合、ロケーションパスのリストのリスト、使用するロケーションパスの数-1
+	
+def getStyleXPaths(root, nodes, maxloc, createStepLists):	# root: ルートノード、nodes: 同じstyle属性をもつノードの集合、maxloc: 使用するロケーションパスの最大値	
+	ori_nodes = nodes.copy()
+	steplists = createStepLists(nodes.pop())  # まずひとつのノードについてロケーションステップのリストのリストを取得。ロケーションステップの順は逆になっている。
+	for num in range(maxloc):  # まず1つですべてのノードを取得できるXPathを探す。
+		if num:  # numが0のとき以外。
+			for steplist in steplists[num:]:  # num+1個のロケーションパスの組のXPathの作成。
+				for steps in product(*steplists[:num], steplist): 
+					xpath = ".//{}//{}".format(steps[-1], "/".join(steps[-2::-1]))  # XPathの作成。				
 					xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
-					if nodes==xpathnodes:  # XPathで同じstyle属性をもつノードすべてが取得できたときはこのXPathを採用する。
-						cssdic[style] = xpath
-						break
-				else:  # 1個のロケーションパスではすべてのノードが取得できなかったとき。
-					for steplist in steplists[1:]:  # 上の階層のロケーションパスの一つと組み合わせる。
-						for steps in product(steplist, steplists[0]):
-							xpath = ".//{}//{}".format(*steps)  # XPathの作成。
-							xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
-							if nodes==xpathnodes:
-								cssdic[style] = xpath
-								break
-					if style in cssdic:  # XPathが取得されているとき。
-						break
-					else:  # 2つのロケーションパスの組み合わせではすべてのノードを取得できなかったとき。
-						for steps in product(steplists[1], steplists[0]):  # 1つ上の階層のロケーションパスのみとの組み合わせについて。
-							xpath = ".//{}/{}".format(*steps)  # XPathの作成。
-							xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
-							if nodes==xpathnodes:
-								cssdic[style] = xpath
-								break		
-					if not style in cssdic:  # まだXPathが取得されていないとき。
-						for steplist in steplists[2:]:  # 3組のロケーションパスのXPathの作成。
-							for steps in product(steplist, steplists[1], steplists[0]): 
-								xpath = ".//{}//{}/{}".format(*steps)  # XPathの作成。				
-								xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
-								if nodes==xpathnodes:
-									cssdic[style] = xpath
-									break	
-						if style in cssdic:  # XPathが取得されているとき。
-							break				
-						else:
-							for steps in product(steplist[2], steplists[1], steplists[0]): 
-								xpath = ".//{}/{}/{}".format(*steps)  # XPathの作成。				
-								xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
-								if nodes==xpathnodes:
-									cssdic[style] = xpath
-									break						
-					if not style in cssdic:  # まだXPathが取得されていないとき。
-						print("Could not create XPath for {}.".format(style))			
-				
-				
+					if xpathnodes==ori_nodes:
+						return xpath,		
+		for steps in product(*steplists[:num+1]):
+			xpath = ".//{}".format("/".join(steps[::-1]))  # XPathの作成。		
+			xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+			if xpathnodes==ori_nodes:
+				return xpath,		
+	xpaths = []
+	while nodes:
+		for num in range(maxloc):
+			if nodes:
+				xpath, xpathnodes = getXPath(root, steplists, nodes, num)
+				if xpath:
+					xpaths.append(xpath)
+					nodes.difference_update(xpathnodes)	
+					ori_nodes.difference_update(xpathnodes)	
+					if not ori_nodes:
+						return xpaths
+		steplists = createStepLists(nodes.pop()) 
+def getXPath(root, steplists, nodes, num):
+	if num:  # numが0のとき以外。
+		for steplist in steplists[num:]:  # num+1個のロケーションパスの組のXPathの作成。
+			for steps in product(*steplists[:num], steplist): 
+				xpath = ".//{}//{}".format(steps[-1], "/".join(steps[-2::-1]))  # XPathの作成。				
+				xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+				if xpathnodes<nodes:
+					return xpath, xpathnodes	
+	for steps in product(*steplists[:num+1]):
+		xpath = ".//{}".format("/".join(steps[::-1]))  # XPathの作成。		
+		xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+		if xpathnodes<nodes:
+			return xpath, xpathnodes	
+	return "", set()		
+	
+	
+		
+		
+		
+# 		for steps in product(steplist[2], steplists[1], steplists[0]): 
+# 			xpath = ".//{}/{}/{}".format(*steps)  # XPathの作成。				
+# 			xpathnodes = set(root.findall(xpath))  # 作成したXPathで該当するノードの集合。
+# 			if nodes==xpathnodes:
+# 				cssdic[style] = xpath
+# 				break					
 			
 			
 # 			if len(nodes)==1:  # ノードの数が1個の時。
@@ -172,12 +258,9 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		
 def steplistsCreator(parent_map):
 	stepdic = {}  # 作成したロケーションパスのキャッシュ。	
-	def _getStep(n):  # p: 親ノード。n: ノード、からnが取りうるロケーションステップのリストを返す。
+	def _getStep(n):  # p: 親ノード。n: ノード、からnが取りうるロケーションステップのリストを返す。条件が緩いのから返す。
 		steplist = []  # この階層での可能性のあるロケーションステップを入れるリスト。
 		tag = n.tag  # ノードのタグ。
-		idattr = n.get("id")  # id属性の取得。
-		if idattr:  # id属性がある時。
-			steplist.append('*[@id="{}"]'.format(idattr))  # idのパス。idの場合はタグは影響しないので*にする。
 		steplist.append(tag)  # タグのみのパス。		
 		children = [i for i in list(parent_map[n]) if i.tag==tag]  # 親ノードの子ノードの階層にあるノードのうち同じタグのノードのリストを取得。p.iter()だとすべての階層の要素が返ってしまう。
 		if len(children)>1:  # 同じタグのノードが同じ階層に複数ある時。
@@ -186,19 +269,19 @@ def steplistsCreator(parent_map):
 		classattr = n.get("class")  # クラス属性の取得。
 		if classattr:  # クラス属性がある時。
 			classes = classattr.split(" ")  # クラスをリストにする。
-			for i in range(1, len(classes)+1):  # 順列の長さ。
-				for c in permutations(classes, i):  # 各順列について。
-					cls = '[@class="{}"]'.format(" ".join(c))  # クラスのあらゆる組み合わせのパス。
-					steplist.append('*{}'.format(cls))  # タグを特定しない。
-					steplist.append('{}{}'.format(tag, cls))  # タグを特定する。
+			clss = ['[@class="{}"]'.format(" ".join(c)) for i in range(1, len(classes)+1) for c in permutations(classes, i)]  # classの全組み合わせを取得。
+			[steplist.append('*{}'.format(c)) for c in clss]  # タグを特定しないクラス。
+			[steplist.append('{}{}'.format(tag, c)) for c in clss]  # タグを特定したクラス。
+		idattr = n.get("id")  # id属性の取得。
+		if idattr:  # id属性がある時。
+			steplist.append('*[@id="{}"]'.format(idattr))  # idのパス。idの場合はタグは影響しないので*にする。		
 		return steplist	 # id、タグ、タグ[番号]、class、タグ+class、の順にロケーションステップを返す。
 	def createStepLists(n):  # ノードのすべてのXPathパターンを返すイテレーターを返す。ロケーションステップのタプルが返る。
 		steplists = []  # ロケーションステップのリストを入れるリスト。
 		while n in parent_map:  # 親ノードがあるときのみ実行。
 			steplists.append(stepdic.setdefault(n, _getStep(n)))  # nが取りうるロケーションステップのリストを辞書から取得。
-			n = parent_map[n]
-# 		steplists.reverse()  # 右に子が来るように逆順にする。
-		return steplists
+			n = parent_map[n]  # 次の親ノードについて。
+		return steplists  # rootから逆向きのリスト。
 	return createStepLists
 			
 
