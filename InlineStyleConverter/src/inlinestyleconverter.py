@@ -35,9 +35,9 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		for style, xpaths in cssdic.items():
 			style = style.strip()
 			style = style.rstrip(";") if style.endswith(";") else style
-			css = "{} {{\n\t{};\n}}\n".format(", ".join([xpathToCSS(i) for i in xpaths]), style.replace(";", ";\n\t"))
+			css = "{} {{\n\t{};\n}}\n".format(", ".join([xpathToCSS(i) for i in xpaths]), style.replace(";", ";\n\t"))  # CSSに整形。
 			print(css)
-def xpathToCSS(xpath):
+def xpathToCSS(xpath):  # XPathをCSSセレクタに変換。
 	prefix = ".//"
 	if xpath.startswith(prefix):
 		xpath = xpath.replace(prefix, "", 1)
