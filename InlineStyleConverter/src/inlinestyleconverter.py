@@ -5,38 +5,43 @@ import sys
 from xml.etree import ElementTree
 from itertools import permutations, product
 def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えられていない時はすべてのノードについて実行する。
-	style_xpath = './/*[@style]'  # sytleのあるノードを取得するXPath。
 	with open(htmlfile, encoding="utf-8") as f:
-		s = f.read()  # ファイルから文字列を取得する。
-		subhtml = re.findall(pattern, s, flags=re.DOTALL)  # XMLに変換するhtmlを取得する。
-		if not subhtml:
-			print("There is no html matching r'{}'.".format(pattern), file=sys.stderr)
-			sys.exit()	
-		x = "<root>{}</root>".format(html2xml(subhtml[0])) # 最初にマッチングしたノードのみxmlにする処理をする。抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
-		try:
-			root = ElementTree.XML(x)  # ElementTreeのElementにする。HTMLをXMLに変換して渡さないといけない。
-		except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
-			errorLines(e, x)  # エラー部分の出力。
+		root = createXML(f, pattern)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
-		styles = set(i.get("style") for i in root.iterfind(style_xpath))  # style属性をもつノードのすべてからstyle属性をすべて取得する。iterfind()は直下以外の子ノードも返る。
-		stylenodedic = {i:root.iterfind('.//*[@style="{}"]'.format(i)) for i in styles}  # キー：sytle属性、値: そのstyle属性のあるノードを返すジェネレーター、の辞書。
-		cssdic = dict()  # キー: sytle属性の値、値: CSSセレクタとなるXPath。
-		for style, nodeiter in stylenodedic.items():  # 各style属性について。
-			print("\n{}\n\tCreating XPath for nodes with this style attribute.".format(style))
+		attrnodesdic = {}  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター。
+# 		addAttr(root, attrnodesdic, "style")  # style属性のあるノードを辞書に取得。
+		attrnames = "style", "hover", "-moz-focus-inner" # 擬似クラス名, 擬似要素名も属性名として扱う。
+		for attrname in attrnames:
+			addAttr(root, attrnodesdic, attrname)  # 擬似クラスのあるノードを辞書に取得。
+		cssdic = dict()  # キー: 属性の値、値: CSSセレクタとなるXPath。
+		for attrval, nodeiter in attrnodesdic.items():  # 各属性について。
+			print("\n{}\n\tCreating XPath for nodes with this style attribute.".format(attrval))
 			nodes = set(nodeiter)  # このstyle属性のあるノードの集合を取得。
 			maxloc = 3  # 使用するロケーションステップの最大個数。
 			xpaths = getStyleXPaths(root, nodes, maxloc, parent_map)  # nodesを取得するXPathのリストを取得する。
 			if xpaths:  # XPathsのリストが取得できたとき。
-				cssdic[style] = xpaths  # style属性をキーとして辞書に取得。
+				cssdic[attrval] = xpaths  # style属性をキーとして辞書に取得。
 				print("\tXPaths:\n\t\t{}".format("\n\t\t".join(xpaths)))
 			else:  # XPathを取得できなかったstyle属性を出力する。
-				print("\tCould not create XPath covering nodes with this style attribute within {} location steps.".format(style, maxloc), file=sys.stderr)	
+				print("\tCould not create XPath covering nodes with this style attribute within {} location steps.".format(attrval, maxloc), file=sys.stderr)	
 		print("\n\nCreating CSS\n")
-		for style, xpaths in cssdic.items():
-			style = style.strip()
-			style = style.rstrip(";") if style.endswith(";") else style
-			css = "{} {{\n\t{};\n}}\n".format(", ".join([xpathToCSS(i) for i in xpaths]), style.replace(";", ";\n\t"))  # CSSに整形。
+		for attrval, xpaths in cssdic.items():
+			attrval = attrval.rstrip(";")  # 最後のセミコロンは除く。
+			if attrval.startswith("pseudo:"):  # 擬似クラス名または擬似要素が属性値として挿入されている時。
+				pseudo, *styles = attrval.split(";")  # 擬似クラスまたは擬似要素の設定を取得。
+				sep = "::" if "::" in pseudo else ":"  # ::なら擬似要素名、:なら擬似クラス名。
+				pseudoclass = pseudo.split(":")[-1]  # 擬似クラス名または擬似要素名を取得。
+				selector = ", ".join(["{}{}{}".format(xpathToCSS(i), sep, pseudoclass) for i in xpaths])
+			else:
+				styles = attrval.split(";")
+				selector = ", ".join([xpathToCSS(i) for i in xpaths])
+			css = "{} {{\n\t{};\n}}\n".format(selector, ";\n\t".join(styles))  # CSSに整形。
 			print(css)
+def addAttr(root, attrnodesdic, attrname):	# 属性の値をキーとする辞書に、その属性を持つノードを返すジェネレーターを取得する。		
+	attr_xpath = './/*[@{}]'.format(attrname)  # 属性のあるノードを取得するXPath。
+	attrvals = set(i.get(attrname).strip() for i in root.iterfind(attr_xpath))  # 属性をもつノードのすべてから属性をすべて取得する。iterfind()だと直下以外の子ノードも返る。前後の空白を除いておく。
+	pseudo = "" if attrname=="style" else "pseudo:{};".format(attrname)  # style属性以外の属性名は値として先頭に追加する。
+	attrnodesdic.update({"{}{}".format(pseudo, i):root.iterfind('.//*[@{}="{}"]'.format(attrname, i)) for i in attrvals})  # キー：属性の値、値: その属性のあるノードを返すジェネレーター、の辞書。				
 def xpathToCSS(xpath):  # XPathをCSSセレクタに変換。
 	prefix = ".//"
 	if xpath.startswith(prefix):
@@ -121,6 +126,19 @@ def steplistsCreator(parent_map):
 			n = parent_map[n]  # 次の親ノードについて。
 		return steplists  # rootから逆向きのリスト。
 	return createStepLists
+
+
+def createXML(f, pattern):  # ファイルオブジェクトと、ノードを抜き出す正規表現パターンからXMLのルートを返す。
+	s = f.read()  # ファイルから文字列を取得する。
+	subhtml = re.findall(pattern, s, flags=re.DOTALL)  # XMLに変換するhtmlを取得する。
+	if not subhtml:
+		print("There is no html matching r'{}'.".format(pattern), file=sys.stderr)
+		sys.exit()	
+	x = "<root>{}</root>".format(html2xml(subhtml[0])) # 最初にマッチングしたノードのみxmlにする処理をする。抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
+	try:
+		return ElementTree.XML(x)  # ElementTreeのElementにする。HTMLをXMLに変換して渡さないといけない。
+	except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
+		errorLines(e, x)  # エラー部分の出力。
 def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
 	print(e, file=sys.stderr)
 	outputs = []
