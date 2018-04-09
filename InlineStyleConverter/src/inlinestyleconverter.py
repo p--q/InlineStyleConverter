@@ -5,6 +5,7 @@ import sys
 from xml.etree import ElementTree
 from itertools import permutations, product
 def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えられていない時はすべてのノードについて実行する。
+	maxloc = 3  # 使用するロケーションステップの最大個数。
 	with open(htmlfile, encoding="utf-8") as f:
 		root = createXML(f, pattern)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
@@ -14,7 +15,6 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 		for attrval, nodeiter in attrnodesdic.items():  # 各属性について。
 			print("\n{}\n\tCreating XPath for nodes with this style attribute.".format(attrval))
 			nodes = set(nodeiter)  # このstyle属性のあるノードの集合を取得。
-			maxloc = 3  # 使用するロケーションステップの最大個数。
 			xpaths = getStyleXPaths(root, nodes, maxloc, parent_map)  # nodesを取得するXPathのリストを取得する。
 			if xpaths:  # XPathsのリストが取得できたとき。
 				cssdic[attrval] = xpaths  # style属性をキーとして辞書に取得。
