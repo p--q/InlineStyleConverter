@@ -34,6 +34,10 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 				selector = ", ".join([xpathToCSS(i) for i in xpaths])
 			css = "{} {{\n\t{};\n}}\n".format(selector, ";\n\t".join(styles))  # CSSに整形。
 			print(css)
+			
+			
+			
+			
 def createNodesDic(root, pseudonames):	# 属性の値をキーとする辞書に、その属性を持つノードを返すジェネレーターを取得する。
 	pseudoclasses = "active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
 	"first-of-type", "focus", "focus-within", "hover", "indeterminate", "in-range", "invalid", "lang", "last-child", "last-of-type",\
