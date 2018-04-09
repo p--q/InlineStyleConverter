@@ -1,66 +1,71 @@
 # -*- coding: utf-8 -*-
-import re
-import html
-import sys
+import re, sys
+import html, webbrowser
 from xml.etree import ElementTree
-from itertools import permutations, product
+from xml.etree.ElementTree import Element
+from itertools import permutations, product, chain
+from collections import ChainMap
 def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えられていない時はすべてのノードについて実行する。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
-	with open(htmlfile, encoding="utf-8") as f:
-		root = createXML(f, pattern)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
-		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
-		pseudonames = "hover", "-moz-focus-inner" # 属性として使用している擬似クラス名と擬似要素名のタプル。
-		attrnodesdic = createNodesDic(root, pseudonames)  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター、の辞書を取得。
-		cssdic = dict()  # キー: 属性の値、値: CSSセレクタとなるXPath。
-		for attrval, nodeiter in attrnodesdic.items():  # 各属性について。
-			print("\n{}\n\tCreating XPath for nodes with this style attribute.".format(attrval))
-			nodes = set(nodeiter)  # このstyle属性のあるノードの集合を取得。
-			xpaths = getStyleXPaths(root, nodes, maxloc, parent_map)  # nodesを取得するXPathのリストを取得する。
-			if xpaths:  # XPathsのリストが取得できたとき。
-				cssdic[attrval] = xpaths  # style属性をキーとして辞書に取得。
-				print("\tXPaths:\n\t\t{}".format("\n\t\t".join(xpaths)))
-			else:  # XPathを取得できなかったstyle属性を出力する。
-				print("\tCould not create XPath covering nodes with this style attribute within {} location steps.".format(attrval, maxloc), file=sys.stderr)	
-		print("\n\nCreating CSS\n")
-		for attrval, xpaths in cssdic.items():
-			attrval = attrval.rstrip(";")  # 最後のセミコロンは除く。
-			if attrval.startswith("pseudo:"):  # 擬似クラス名または擬似要素が属性値として挿入されている時。
-				pseudo, *styles = attrval.split(";")  # 擬似クラスまたは擬似要素の設定を取得。
-				sep = "::" if "::" in pseudo else ":"  # ::なら擬似要素名、:なら擬似クラス名。
-				pseudoclass = pseudo.split(":")[-1]  # 擬似クラス名または擬似要素名を取得。
-				selector = ", ".join(["{}{}{}".format(xpathToCSS(i), sep, pseudoclass) for i in xpaths])
-			else:
-				styles = attrval.split(";")
-				selector = ", ".join([xpathToCSS(i) for i in xpaths])
-			css = "{} {{\n\t{};\n}}\n".format(selector, ";\n\t".join(styles))  # CSSに整形。
-			print(css)
-			
-			
-			
-			
-def createNodesDic(root, pseudonames):	# 属性の値をキーとする辞書に、その属性を持つノードを返すジェネレーターを取得する。
 	pseudoclasses = "active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
 	"first-of-type", "focus", "focus-within", "hover", "indeterminate", "in-range", "invalid", "lang", "last-child", "last-of-type",\
 	"left", "link", "only-child", "only-of-type", "optional" , "out-of-range", "read-only", "read-write", "required", "right",\
 	"root", "scope", "target", "valid", "visited"  # 擬似クラス。引数のあるものを除く。
-	pseudoelements = "after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"  # 擬似要素
-	attrnodesdic = {}
-	attrnodesdic.update(getAttrDic(root, "style"))
-	for psuedoname in pseudonames:
-		if psuedoname in pseudoclasses:
-			sep = ":"
-		elif psuedoname in pseudoelements: 
-			sep = ""
-		else:
-			print("{} is neither pseudo-class nor pseudo-element.".format(psuedoname))
-			continue
-		attrnodesdic.update(getAttrDic(root, psuedoname, sep))
-	return attrnodesdic
-def getAttrDic(root, attrname, sep=""):
-	attr_xpath = './/*[@{}]'.format(attrname)  # 属性のあるノードを取得するXPath。
-	attrvals = set(i.get(attrname).strip() for i in root.iterfind(attr_xpath))  # 属性をもつノードのすべてから属性をすべて取得する。iterfind()だと直下以外の子ノードも返る。前後の空白を除いておく。
-	pseudo = "" if attrname=="style" else "pseudo:{}{};".format(sep, attrname)  # style属性以外の属性名は値として先頭に追加する。
-	return {"{}{}".format(pseudo, i):root.iterfind('.//*[@{}="{}"]'.format(attrname, i)) for i in attrvals}  # キー：属性の値、値: その属性のあるノードを返すジェネレーター、の辞書。				
+	pseudoelements = "after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"  # 擬似要素	
+	attrnames = list(chain(["style"], ("pseudo{}".format(i) for i in pseudoclasses), ("pseudoelem{}".format(i) for i in pseudoelements)))  # 抽出する属性名のイテレーター。
+	regex = re.compile(pattern, flags=re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
+	with open(htmlfile, encoding="utf-8") as f:
+		root = createXML(f, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
+		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
+		attrnodesdic = createNodesDic(root, attrnames)  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター、の辞書を取得。
+		cssdic = dict()  # キー: 属性の値、値: CSSセレクタとなるXPath。
+		for attrval, nodeiter in attrnodesdic.items():  # 各属性値について。
+			print("\n{}\n\tCreating XPath for nodes with this style attribute.".format(attrval))
+			nodes = set(nodeiter)  # この属性値のあるノードの集合を取得。
+			xpaths = getStyleXPaths(root, nodes, maxloc, parent_map)  # nodesを取得するXPathのリストを取得。
+			if xpaths:  # XPathsのリストが取得できたとき。
+				cssdic[attrval] = xpaths  # 属性値をキーとして辞書に取得。
+				print("\tXPaths:\n\t\t{}".format("\n\t\t".join(xpaths)))
+			else:  # XPathを取得できなかった属性値を出力する。
+				print("\tCould not create XPath covering nodes with this style attribute within {} location steps.".format(attrval, maxloc), file=sys.stderr)	
+		print("\n\n####################Created CSS####################\n")
+		csses = []  #完成したCSSを入れるリスト。
+		for attrval, xpaths in cssdic.items():  # attrval: 属性値。最初の要素には属性名が入ってくる。
+			attrval = attrval.rstrip(";")  # 最後のセミコロンは除く。
+			attrname, *styles = attrval.split(";")  # 属性の値をリストで取得する。最初の要素は属性名。
+			if attrname.startswith("pseudo"):  # 擬似クラス名または擬似要素の時。
+				pseudo = attrname.replace("pseudoelem", ":").replace("pseudo", "")  # CSSセレクターに追加する形式に変換。
+				selector = ", ".join(["{}:{}".format(xpathToCSS(i), pseudo) for i in xpaths])
+			else:
+				selector = ", ".join([xpathToCSS(i) for i in xpaths])
+			css = "{} {{\n\t{};\n}}\n".format(selector, ";\n\t".join(styles))  # CSSに整形。
+			print(css)
+			csses.append(css)
+		for attrname in attrnames:	
+			for n in root.iterfind('.//*[@{}]'.format(attrname)):
+				del n.attrib[attrname]  # CSSにした属性をXMLから削除する。				
+		root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。
+		replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
+		newhtml = regex.sub(replhtml, f.read())  # 元ファイルのHTMLを置換。
+	with open("converted_{}".format(htmlfile), 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
+		f.writelines(newhtml)  # ファイルに書き出し。
+		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。		
+def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュートのtextとtailはkwargsで渡す。		
+	txt = kwargs.pop("text", None)
+	tail = kwargs.pop("tail", None)
+	elem = Element(tag, attrib, **kwargs)
+	if txt:
+		elem.text = txt
+	if tail:
+		elem.tail = tail	
+	return elem		
+def createNodesDic(root, attrnames):	# 属性の値をキーとする辞書に、その属性を持つノードを返すジェネレーターを取得する。
+	dics = []
+	for attrname in attrnames:
+		attr_xpath = './/*[@{}]'.format(attrname)  # 属性のあるノードを取得するXPath。
+		attrvals = set(i.get(attrname).strip() for i in root.iterfind(attr_xpath))  # 属性をもつノードのすべてから属性の値をすべて取得する。iterfind()だと直下以外の子ノードも返る。前後の空白を除いておく。
+		dics.append({"{};{}".format(attrname, i):root.iterfind('.//*[@{}="{}"]'.format(attrname, i)) for i in attrvals})  # キー：属性の値、値: その属性のあるノードを返すジェネレーター、の辞書。キーの先頭に属性名が入っている。		
+	return ChainMap(*dics)
 def xpathToCSS(xpath):  # XPathをCSSセレクタに変換。
 	prefix = ".//"
 	if xpath.startswith(prefix):
@@ -145,11 +150,11 @@ def steplistsCreator(parent_map):
 			n = parent_map[n]  # 次の親ノードについて。
 		return steplists  # rootから逆向きのリスト。
 	return createStepLists
-def createXML(f, pattern):  # ファイルオブジェクトと、ノードを抜き出す正規表現パターンからXMLのルートを返す。
+def createXML(f, regex):  # ファイルオブジェクトと、ノードを抜き出す正規表現パターンからXMLのルートを返す。
 	s = f.read()  # ファイルから文字列を取得する。
-	subhtml = re.findall(pattern, s, flags=re.DOTALL)  # XMLに変換するhtmlを取得する。
+	subhtml = regex.findall(s)  # XMLに変換するhtmlを取得する。
 	if not subhtml:
-		print("There is no html matching r'{}'.".format(pattern), file=sys.stderr)
+		print("There is no html matching r'{}'.".format(regex.pattern), file=sys.stderr)
 		sys.exit()	
 	x = "<root>{}</root>".format(html2xml(subhtml[0])) # 最初にマッチングしたノードのみxmlにする処理をする。抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
 	try:
@@ -157,6 +162,7 @@ def createXML(f, pattern):  # ファイルオブジェクトと、ノードを�
 	except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
 		errorLines(e, x)  # エラー部分の出力。
 def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
+	print("Failed to convert HTML to XML.", file=sys.stderr)
 	print(e, file=sys.stderr)
 	outputs = []
 	r, c = e.position  # エラー行と列の取得。行は1から始まる。
@@ -193,5 +199,6 @@ def repl(m):  # マッチングオブジェクトの処理。
 	e = m.group(0).rstrip()
 	return e if e.endswith("/") else "".join([e, "/"])  # 要素が/で終わっていない時は/で閉じる。
 if __name__ == "__main__": 
+# 	inlinestyleconverter("source.html", r'<body>.*<\/body>' )  # く<script>や<style>要素が入るとうまくXMLに変換できない。
 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
 	
