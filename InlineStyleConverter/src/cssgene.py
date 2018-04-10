@@ -13,22 +13,22 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 		root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
 		replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
 		newhtml = regex.sub(replhtml, s)  # 元ファイルのHTMLをCSS入りに置換。
-	outfile = args.output if args and args.output else "converted_{}".format(htmlfile)
+	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)
 	print("Opening {} using the default browser.".format(outfile))
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。		
 def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
-	pseudoclasses = "active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
+	pseudoclasses = ["active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
 	"first-of-type", "focus", "focus-within", "hover", "indeterminate", "in-range", "invalid", "lang", "last-child", "last-of-type",\
 	"left", "link", "only-child", "only-of-type", "optional" , "out-of-range", "read-only", "read-write", "required", "right",\
-	"root", "scope", "target", "valid", "visited"  # 擬似クラス。引数のあるものを除く。
-	pseudoelements = "after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"  # 擬似要素	
-	if not args:
+	"root", "scope", "target", "valid", "visited"]  # 擬似クラス。引数のあるものを除く。
+	pseudoelements = ["after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"]  # 擬似要素	
+	if args is not None:
 		maxloc = args.max
-		pseudoclasses = args.pseudoclasses.extend(pseudoclasses)
-		pseudoelements = args.pseudoelements.extend(pseudoelements)
+		pseudoclasses.extend(args.pseudoclasses)
+		pseudoelements.extend(args.pseudoelements)
 	attrnames = list(chain(["style"], ("pseudo{}".format(i) for i in pseudoclasses), ("pseudoelem{}".format(i) for i in pseudoelements)))  # 抽出する属性名のイテレーター。	
 	parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 	attrnodesdic = createNodesDic(root, attrnames)  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター、の辞書を取得。
@@ -215,8 +215,8 @@ if __name__ == "__main__":  # /opt/libreoffice5.4/program/python cssgene.py sour
 	parser.add_argument('htmlfile', help='HTML file with inline style attributes')
 	parser.add_argument('regexpattern', default='<body>.*<\/body>', help='a regular expression pattern that extracts parts to be converted to XML')
 	parser.add_argument('-m', '--max', default=3, type=int, help='maximum number of selectors')
-	parser.add_argument('-c', '--pseudoclasses', nargs='*', help='pseudo classes for inline attribute')
-	parser.add_argument('-e', '--pseudoelements', nargs='*', help='pseudo elements for inline attribute')
+	parser.add_argument('-c', '--pseudoclasses', default=[], nargs='*', help='pseudo classes for inline attribute')
+	parser.add_argument('-e', '--pseudoelements', default=[], nargs='*', help='pseudo elements for inline attribute')
 	parser.add_argument('-o', '--output', help='output file')
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
