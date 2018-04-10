@@ -15,7 +15,8 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 	attrnames = list(chain(["style"], ("pseudo{}".format(i) for i in pseudoclasses), ("pseudoelem{}".format(i) for i in pseudoelements)))  # 抽出する属性名のイテレーター。
 	regex = re.compile(pattern, flags=re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
 	with open(htmlfile, encoding="utf-8") as f:
-		root = createXML(f, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
+		s = f.read()  # ファイルから文字列を取得する。
+		root = createXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 		parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 		attrnodesdic = createNodesDic(root, attrnames)  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター、の辞書を取得。
 		cssdic = dict()  # キー: 属性の値、値: CSSセレクタとなるXPath。
@@ -46,7 +47,7 @@ def inlinestyleconverter(htmlfile, pattern=r".*"):  # 正規表現が与えら�
 				del n.attrib[attrname]  # CSSにした属性をXMLから削除する。				
 		root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。
 		replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
-		newhtml = regex.sub(replhtml, f.read())  # 元ファイルのHTMLを置換。
+		newhtml = regex.sub(replhtml, s)  # 元ファイルのHTMLを置換。
 	with open("converted_{}".format(htmlfile), 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。		
@@ -150,8 +151,7 @@ def steplistsCreator(parent_map):
 			n = parent_map[n]  # 次の親ノードについて。
 		return steplists  # rootから逆向きのリスト。
 	return createStepLists
-def createXML(f, regex):  # ファイルオブジェクトと、ノードを抜き出す正規表現パターンからXMLのルートを返す。
-	s = f.read()  # ファイルから文字列を取得する。
+def createXML(s, regex):  # s:文字列、regex: ノードを抜き出す正規表現パターン。
 	subhtml = regex.findall(s)  # XMLに変換するhtmlを取得する。
 	if not subhtml:
 		print("There is no html matching r'{}'.".format(regex.pattern), file=sys.stderr)
