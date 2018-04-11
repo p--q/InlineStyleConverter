@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import re, sys
 import html, webbrowser
@@ -26,7 +27,7 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 	"root", "scope", "target", "valid", "visited"]  # 擬似クラス。引数のあるものを除く。
 	pseudoelements = ["after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"]  # 擬似要素	
 	if args is not None:
-		maxloc = args.max
+		maxloc = args.maxsteps
 		pseudoclasses.extend(args.pseudoclasses)
 		pseudoelements.extend(args.pseudoelements)
 	attrnames = list(chain(["style"], ("pseudo{}".format(i) for i in pseudoclasses), ("pseudoelem{}".format(i) for i in pseudoelements)))  # 抽出する属性名のイテレーター。	
@@ -42,7 +43,7 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 			cssdic[attrval] = xpaths  # 属性値をキーとして辞書に取得。
 			print("\t{} XPaths for {} nodes:              			  			  \n\t\t{}".format(len(xpaths), c, "\n\t\t".join(xpaths)))  # スペースを入れないとend=\rで出力した内容が残ってくる。
 		else:  # XPathを取得できなかった属性値を出力する。
-			print("\tCould not create XPath covering nodes with this style attribute within {} location steps.".format(attrval, maxloc), file=sys.stderr)	
+			print("Could not create XPath covering nodes within {} location step(s).".format(maxloc), file=sys.stderr)	
 	print("\n\n####################Created CSS####################\n")
 	csses = []  #完成したCSSを入れるリスト。
 	for attrval, xpaths in cssdic.items():  # attrval: 属性値。最初の要素には属性名が入ってくる。
@@ -133,7 +134,7 @@ def getStyleXPaths(root, nodes, maxloc, parent_map):	# root: ルートノード�
 					return xpaths
 				break
 		steplists = createStepLists(nodes.pop()) if nodes else None	
-	print("Could not cover {} node(s).".format(len(nodescheck)))
+	print("\tCould not cover {} node(s)          ".format(len(nodescheck)))
 	return None	
 def steplistsCreator(parent_map):
 	stepdic = {}  # 作成したロケーションパスのキャッシュ。	
@@ -209,18 +210,15 @@ def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられて�
 def repl(m):  # マッチングオブジェクトの処理。
 	e = m.group(0).rstrip()
 	return e if e.endswith("/") else "".join([e, "/"])  # 要素が/で終わっていない時は/で閉じる。
-if __name__ == "__main__":  # /opt/libreoffice5.4/program/python cssgene.py source.html '<div id="tcuheader".*<\/div>'
+if __name__ == "__main__":  # /opt/libreoffice5.4/program/python cssgene.py source.html -r '<div id="tcuheader".*<\/div>'
 	import argparse
 	parser = argparse.ArgumentParser(description="convert inline style attributes of HTML file to <style> element")
 	parser.add_argument('htmlfile', help='HTML file with inline style attributes')
-	parser.add_argument('regexpattern', default='<body>.*<\/body>', help='a regular expression pattern that extracts parts to be converted to XML')
-	parser.add_argument('-m', '--max', default=3, type=int, help='maximum number of selectors')
-	parser.add_argument('-c', '--pseudoclasses', default=[], nargs='*', help='pseudo classes for inline attribute')
-	parser.add_argument('-e', '--pseudoelements', default=[], nargs='*', help='pseudo elements for inline attribute')
-	parser.add_argument('-o', '--output', help='output file')
+	parser.add_argument('-r', '--regexpattern', default='.*', help="a regular expression pattern that extracts HTML to be converted to XML (default: '.*')")
+	parser.add_argument('-m', '--maxsteps', default=3, type=int, help='maximum number of selector elements (default: 3)')
+	parser.add_argument('-c', '--pseudoclasses', default=[], nargs='*', metavar="Pseudo-class", help='additional pseudo-classes for inline attribute')
+	parser.add_argument('-e', '--pseudoelements', default=[], nargs='*', metavar="Pseudo-element", help='additional pseudo-elements for inline attribute')
+	parser.add_argument('-o', '--output', help='output file (default: prefix converted_)')
+	parser.add_argument('-V', '--version', action='version', version='%(prog)s 0.1.0')
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
-	
-# 	inlinestyleconverter("source.html", r'<body>.*<\/body>' )  # く<script>や<style>要素が入るとうまくXMLに変換できない。
-# 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
-	
