@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import re, sys
-import html, webbrowser
+import re, sys, html, webbrowser
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element
 from itertools import permutations, product, chain
@@ -204,11 +203,12 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	r, c = e.position  # エラー行と列の取得。行は1から始まる。
 	lines = txt.split("\n")  # 行のリストにする。
 	errorline = lines[r-1]  # エラー行を取得。
-	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。			
-	if lastcolumn>400:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
-		firstcolumn = c - 200
+	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。		
+	maxcolmuns = 400  # 折り返す列数。	
+	if lastcolumn>maxcolmuns:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
+		firstcolumn = c - maxcolmuns/2
 		firstcolumn = 0 if firstcolumn<0 else firstcolumn
-		endcolumn = c + 200
+		endcolumn = c + maxcolmuns/2
 		endcolumn = lastcolumn if endcolumn>lastcolumn else endcolumn			
 		outputs.append("{}c{}to{}:  {}".format(r, firstcolumn, c-1, errorline[firstcolumn:c]))
 		outputs.append("{}c{}to{}:  {}".format(r, c, endcolumn, errorline[c:endcolumn]))
