@@ -43,8 +43,8 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 			cssdic[attrval] = xpaths  # 属性値をキーとして辞書に取得。
 			print("\t{} XPaths for {} nodes:              			  			  \n\t\t{}".format(len(xpaths), c, "\n\t\t".join(xpaths)))  # スペースを入れないとend=\rで出力した内容が残ってくる。
 		else:  # XPathを取得できなかった属性値を出力する。
-			print("Could not create XPath covering nodes within {} location step(s).".format(maxloc), file=sys.stderr)	
-	print("\n\n####################Created CSS####################\n")
+			print("Could not generate XPath covering nodes within {} location step(s).".format(maxloc), file=sys.stderr)	
+	print("\n\n####################Generated CSS####################\n")
 	csses = []  #完成したCSSを入れるリスト。
 	for attrval, xpaths in cssdic.items():  # attrval: 属性値。最初の要素には属性名が入ってくる。
 		attrval = attrval.rstrip(";")  # 最後のセミコロンは除く。
