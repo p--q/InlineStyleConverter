@@ -25,21 +25,26 @@ def formatHTML(html):  # HTMLを整形する。
 def repltagCreator():  # 開始タグと終了タグのマッチオブジェクトを処理する関数を返す。
 	indent = "\t"  # インデント。
 	c = 0  # インデントの数。
-	tagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
+	starttagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
+	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"  # HTMLでは終了タグがなくなるタグ。
 	def repltag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
-		nonlocal c, tagtype
+		nonlocal c, starttagtype
 		tag = m.group(0)  # タグを取得。
 		if tag.startswith("</"):  # 終了タグの時。
 			c -= 1  # インデントの数を減らす。
-			if m.group(1)!=tagtype:  # 開始タグを同じ要素型の時。
+			if m.group(1)!=starttagtype:  # 開始タグを同じ要素型の時。
 				txt = "\n{}{}".format(indent*c, tag)  # タグの前で改行してインデントする。
 			else:  # 開始タグと異なる要素型のときはそのまま返す。
 				txt = tag
-			tagtype = ""  # 開始タグの要素型をリセットする。
+			starttagtype = ""  # 開始タグの要素型をリセットする。
 		else:  # 開始タグの時。
-			tagtype = m.group(1)  # タグの要素型をクロージャに取得。
-			txt = "\n{}{}".format(indent*c, tag)  # 開始タグの前で改行してインデントする。
-			c += 1  # インデントの数を増やす。
+			tagtype = m.group(1)  # 要素型を取得。
+			if tagtype in noendtags:  # 終了タグのないタグのときはそのまま返す。
+				txt = tag
+			else:  # 終了タグのないタグでない時。	
+				txt = "\n{}{}".format(indent*c, tag)  # 開始タグの前で改行してインデントする。
+				starttagtype = tagtype  # タグの要素型をクロージャに取得。
+				c += 1  # インデントの数を増やす。
 		return txt
 	return repltag
 def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
