@@ -10,15 +10,22 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	regex = re.compile(pattern, flags=re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
-		root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
-		root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
-		replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
-		newhtml = regex.sub(replhtml, s)  # 元ファイルのHTMLをCSS入りに置換。
-	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)
+	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
+	root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
+	replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
+	newhtml = regex.sub(replhtml, s)  # 元ファイルのHTMLをCSS入りに置換。
+	
+		
+		
+	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
 	print("Opening {} using the default browser.".format(outfile))
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
-		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。		
+		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
+def formatHTML(html):
+	single_elem = r'<.*?\/.*?>'
+
+	
 def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
 	pseudoclasses = ["active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
