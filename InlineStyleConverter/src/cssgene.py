@@ -13,20 +13,37 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 	root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
 	replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
-	newhtml = regex.sub(replhtml, s)  # 元ファイルのHTMLをCSS入りに置換。
-	
-		
-		
+	newhtml = formatHTML(regex.sub(replhtml, s))   # 元ファイルのHTMLをCSS入りに置換。
 	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
 	print("Opening {} using the default browser.".format(outfile))
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
-def formatHTML(html):
-	single_elem = r'<.*?\/.*?>'
-
-	
-def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。
+def formatHTML(html):  # HTMLを整形する。
+	tagregex = re.compile(r"(?i)<\/?(\w+)((\s+[a-zA-Z0-9_\-]+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>")  # 開始タグと終了タグすべてを抽出する正規表現オブジェクト。
+	repltag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
+	return tagregex.sub(repltag, html)
+def repltagCreator():  # 開始タグと終了タグのマッチオブジェクトを処理する関数を返す。
+	indent = "\t"  # インデント。
+	c = 0  # インデントの数。
+	tagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
+	def repltag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
+		nonlocal c, tagtype
+		tag = m.group(0)  # タグを取得。
+		if tag.startswith("</"):  # 終了タグの時。
+			c -= 1  # インデントの数を減らす。
+			if m.group(1)!=tagtype:  # 開始タグを同じ要素型の時。
+				txt = "\n{}{}".format(indent*c, tag)  # タグの前で改行してインデントする。
+			else:  # 開始タグと異なる要素型のときはそのまま返す。
+				txt = tag
+			tagtype = ""  # 開始タグの要素型をリセットする。
+		else:  # 開始タグの時。
+			tagtype = m.group(1)  # タグの要素型をクロージャに取得。
+			txt = "\n{}{}".format(indent*c, tag)  # 開始タグの前で改行してインデントする。
+			c += 1  # インデントの数を増やす。
+		return txt
+	return repltag
+def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
 	pseudoclasses = ["active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
 	"first-of-type", "focus", "focus-within", "hover", "indeterminate", "in-range", "invalid", "lang", "last-child", "last-of-type",\
@@ -217,7 +234,7 @@ def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられて�
 def repl(m):  # マッチングオブジェクトの処理。
 	e = m.group(0).rstrip()
 	return e if e.endswith("/") else "".join([e, "/"])  # 要素が/で終わっていない時は/で閉じる。
-if __name__ == "__main__":  # /opt/libreoffice5.4/program/python cssgene.py source.html -r '<div id="tcuheader".*<\/div>'
+def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -r '<div id="tcuheader".*<\/div>'
 	import argparse
 	parser = argparse.ArgumentParser(description="convert inline style attributes of HTML file to <style> element")
 	parser.add_argument('htmlfile', help='HTML file with inline style attributes')
@@ -229,3 +246,6 @@ if __name__ == "__main__":  # /opt/libreoffice5.4/program/python cssgene.py sour
 	parser.add_argument('-V', '--version', action='version', version='%(prog)s 0.1.0')
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
+if __name__ == "__main__":
+	commadline()  # コマンドラインから実行する時。
+# 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
