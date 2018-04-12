@@ -9,11 +9,17 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	regex = re.compile(pattern, re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
-		
-	m = re.match(r"<!DOCTYPE.*?>", s)  # ドキュメントタイプ宣言のマッチオブジェクトを取得する。	
-	if m:
-		doctype = m.group(0)  # ドキュメントタイプ宣言を取得。
-		s = s.replace(doctype, "", 1)  # XMLに変換できないのでドキュメントタイプ宣言を削除。
+	
+	stash = []
+	for m in re.finditer(r"(?is)<!DOCTYPE.*?>", s):
+		txt = m.group(0)
+		s = s.replace(txt, "", 1)
+		stash.append(txt)
+	
+# 	m = re.match(r"<!DOCTYPE.*?>", s)  # ドキュメントタイプ宣言のマッチオブジェクトを取得する。	
+# 	if m:
+# 		doctype = m.group(0)  # ドキュメントタイプ宣言を取得。
+# 		s = s.replace(doctype, "", 1)  # XMLに変換できないのでドキュメントタイプ宣言を削除。
 		
 		
 	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
@@ -21,8 +27,8 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	html = elem2html(root).replace("<root>", "", 1).rsplit("</root>", 1)[0]  # ElementオブジェクトをHTMLにする。XMLに追加した時のrootタグを削除。
 	newhtml = formatHTML(regex.sub(html, s))   # 元ファイルのHTMLをCSS入りに置換して整形する。
 	
-	if m:  # ドキュメントタイプ宣言があった時それを元に戻す。
-		newhtml = "\n".join([doctype, newhtml])
+# 	if m:  # ドキュメントタイプ宣言があった時それを元に戻す。
+# 		newhtml = "\n".join([doctype, newhtml])
 		
 		
 	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
