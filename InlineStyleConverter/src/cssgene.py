@@ -93,8 +93,9 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 		csses.append(css)
 	for attrname in attrnames:	
 		for n in root.iterfind('.//*[@{}]'.format(attrname)):
-			del n.attrib[attrname]  # CSSにした属性をXMLから削除する。				
-	root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。	
+			del n.attrib[attrname]  # CSSにした属性をXMLから削除する。	
+	if csses:			
+		root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。	
 	return root
 def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュートのtextとtailはkwargsで渡す。		
 	txt = kwargs.pop("text", None)
@@ -238,8 +239,8 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	sys.exit()			
 def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられていないタグを閉じる。
 	txt = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
-	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"  # ウェブブラウザで保存すると閉じられなくなるタグ。
-	noend_regex = re.compile("|".join([r"(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))  # 各タグについて正規表現オブジェクトの作成。各タグの<>内のみを抽出する。
+	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr"  # ウェブブラウザで保存すると閉じられなくなるタグ。
+	noend_regex = re.compile("|".join([r"(?i)(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))  # 各タグについて正規表現オブジェクトの作成。各タグの<>内のみを抽出する。
 	txt = noend_regex.sub(repl, txt)  # マッチングオブジェクトをreplに渡して処理。
 	return txt
 def repl(m):  # マッチングオブジェクトの処理。
@@ -258,6 +259,7 @@ def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
 if __name__ == "__main__":
-	commadline()  # コマンドラインから実行する時。
+# 	commadline()  # コマンドラインから実行する時。
 # 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
 # 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
+	inlinestyleconverter("exam1.html", r'<html>.*<\/html>')  # このスクリプトを直接実行する時。
