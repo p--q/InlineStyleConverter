@@ -258,6 +258,6 @@ def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
 if __name__ == "__main__":
-# 	commadline()  # コマンドラインから実行する時。
+	commadline()  # コマンドラインから実行する時。
 # 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
-	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
+# 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
