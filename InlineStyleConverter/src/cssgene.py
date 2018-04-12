@@ -19,9 +19,10 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
 def formatHTML(html):  # HTMLを整形する。
-	tagregex = re.compile(r"(?i)<\/?(\w+)((\s+[a-zA-Z0-9_\-]+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>")  # 開始タグと終了タグすべてを抽出する正規表現オブジェクト。
+	tagregex = re.compile(r"(?is)<\/?(\w+)((\s+[a-zA-Z0-9_\-]+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。
 	repltag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
-	return tagregex.sub(repltag, html)
+	html = tagregex.sub(repltag, html)  # インデントを付けて整形する。
+	return html[1:] if html.startswith("\n") else html  # 先頭の改行を削除して返す。
 def repltagCreator():  # 開始タグと終了タグのマッチオブジェクトを処理する関数を返す。
 	indent = "\t"  # インデント。
 	c = 0  # インデントの数。
@@ -29,22 +30,27 @@ def repltagCreator():  # 開始タグと終了タグのマッチオブジェク�
 	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"  # HTMLでは終了タグがなくなるタグ。
 	def repltag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
 		nonlocal c, starttagtype
-		tag = m.group(0)  # タグを取得。
-		if tag.startswith("</"):  # 終了タグの時。
+		txt = m.group(0)  # マッチした文字列を取得。
+		if txt.startswith("</"):  # 終了タグの時。
 			c -= 1  # インデントの数を減らす。
 			if m.group(1)!=starttagtype:  # 開始タグを同じ要素型の時。
-				txt = "\n{}{}".format(indent*c, tag)  # タグの前で改行してインデントする。
-			else:  # 開始タグと異なる要素型のときはそのまま返す。
-				txt = tag
+				txt = "\n{}{}".format(indent*c, txt)  # タグの前で改行してインデントする。
 			starttagtype = ""  # 開始タグの要素型をリセットする。
-		else:  # 開始タグの時。
+		elif txt.startswith("<"):  # 開始タグの時。
+			txt = "\n{}{}".format(indent*c, txt)  # 開始タグの前で改行してインデントする。
 			tagtype = m.group(1)  # 要素型を取得。
-			if tagtype in noendtags:  # 終了タグのないタグのときはそのまま返す。
-				txt = tag
-			else:  # 終了タグのないタグでない時。	
-				txt = "\n{}{}".format(indent*c, tag)  # 開始タグの前で改行してインデントする。
+			if not tagtype in noendtags:  # 終了タグのないタグでない時。 
 				starttagtype = tagtype  # タグの要素型をクロージャに取得。
 				c += 1  # インデントの数を増やす。
+		else:  # テキストノードの時。
+			if not txt.strip():  # 改行や空白だけのとき。
+				return ""  # 削除する。
+			if "\n" in txt: # テキストノードが複数行に渡る時。
+				endbreak = "" if txt.endswith("\n") else "\n"  # 最後は改行する。
+				newbreak = "\n{}".format(indent*c)  # 全行をインデントする。
+				txt = "".join([newbreak, txt.replace("\n", newbreak), endbreak, indent*(c-1)])
+			elif not starttagtype:  # 開始タグに続くテキストノードではない時。
+				txt = "\n{}{}".format(indent*c, txt)  # 前で改行してインデントする。
 		return txt
 	return repltag
 def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
@@ -252,5 +258,6 @@ def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
 if __name__ == "__main__":
-	commadline()  # コマンドラインから実行する時。
+# 	commadline()  # コマンドラインから実行する時。
 # 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
+	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
