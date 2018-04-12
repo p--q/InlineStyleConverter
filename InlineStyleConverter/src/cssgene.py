@@ -6,18 +6,37 @@ from xml.etree.ElementTree import Element
 from itertools import permutations, product, chain
 from collections import ChainMap
 def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現が与えられていない時はすべてのノードについて実行する。
-	regex = re.compile(pattern, flags=re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
+	regex = re.compile(pattern, re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
+		
+	m = re.match(r"<!DOCTYPE.*?>", s)  # ドキュメントタイプ宣言のマッチオブジェクトを取得する。	
+	if m:
+		doctype = m.group(0)  # ドキュメントタイプ宣言を取得。
+		s = s.replace(doctype, "", 1)  # XMLに変換できないのでドキュメントタイプ宣言を削除。
+		
+		
 	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 	root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
-	replhtml = "".join([ElementTree.tostring(i, encoding="unicode", method="html") for i in root])  # XMLをHTMLのユニコード文字列に戻す。
-	newhtml = formatHTML(regex.sub(replhtml, s))   # 元ファイルのHTMLをCSS入りに置換。
+	html = elem2html(root).replace("<root>", "", 1).rsplit("</root>", 1)[0]  # ElementオブジェクトをHTMLにする。XMLに追加した時のrootタグを削除。
+	newhtml = formatHTML(regex.sub(html, s))   # 元ファイルのHTMLをCSS入りに置換して整形する。
+	
+	if m:  # ドキュメントタイプ宣言があった時それを元に戻す。
+		newhtml = "\n".join([doctype, newhtml])
+		
+		
 	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
 	print("Opening {} using the default browser.".format(outfile))
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
+		
+		
+		
+		
+def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
+	html = ElementTree.tostring(elem, encoding="unicode", method="html")
+	return html.replace("</wbr>", "").replace("</track>", "")  # ElementTRee.HTML_EMPTYにwbrとtrackが入っていないので、終了タグを削除。
 def formatHTML(html):  # HTMLを整形する。
 	tagregex = re.compile(r"(?is)<\/?(\w+)((\s+[a-zA-Z0-9_\-]+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。
 	repltag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
@@ -27,7 +46,7 @@ def repltagCreator():  # 開始タグと終了タグのマッチオブジェク�
 	indent = "\t"  # インデント。
 	c = 0  # インデントの数。
 	starttagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
-	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source"  # HTMLでは終了タグがなくなるタグ。
+	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr", "track"  # HTMLでは終了タグがなくなるタグ。
 	def repltag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
 		nonlocal c, starttagtype
 		txt = m.group(0)  # マッチした文字列を取得。
@@ -39,7 +58,9 @@ def repltagCreator():  # 開始タグと終了タグのマッチオブジェク�
 		elif txt.startswith("<"):  # 開始タグの時。
 			txt = "\n{}{}".format(indent*c, txt)  # 開始タグの前で改行してインデントする。
 			tagtype = m.group(1)  # 要素型を取得。
-			if not tagtype in noendtags:  # 終了タグのないタグでない時。 
+			if tagtype in noendtags:  # 終了タグのないタグの時。 
+				starttagtype = ""  # 開始タグの要素型をリセットする。
+			else:  # 終了タグのないタグでない時。 
 				starttagtype = tagtype  # タグの要素型をクロージャに取得。
 				c += 1  # インデントの数を増やす。
 		else:  # テキストノードの時。
@@ -91,11 +112,13 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 		css = "{} {{\n\t{};\n}}\n".format(selector, ";\n\t".join(styles))  # CSSに整形。
 		print(css)
 		csses.append(css)
-	for attrname in attrnames:	
-		for n in root.iterfind('.//*[@{}]'.format(attrname)):
-			del n.attrib[attrname]  # CSSにした属性をXMLから削除する。	
-	if csses:			
+	if csses:  # CSSが生成されたとき。
+		for attrname in attrnames:	
+			for n in root.iterfind('.//*[@{}]'.format(attrname)):
+				del n.attrib[attrname]  # CSSにした属性をXMLから削除する。		
 		root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。	
+	else:
+		print("no CSS generated\n")
 	return root
 def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュートのtextとtailはkwargsで渡す。		
 	txt = kwargs.pop("text", None)
@@ -239,12 +262,12 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	sys.exit()			
 def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられていないタグを閉じる。
 	txt = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
-	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr"  # ウェブブラウザで保存すると閉じられなくなるタグ。
-	noend_regex = re.compile("|".join([r"(?i)(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))  # 各タグについて正規表現オブジェクトの作成。各タグの<>内のみを抽出する。
+	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr", "track"  # ウェブブラウザで保存すると閉じられなくなるタグ。
+	noend_regex = re.compile("|".join([r"(?i)(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))  # 各タグについて正規表現オブジェクトの作成。各タグの<>内のみを抽出する。大文字でも取得する。
 	txt = noend_regex.sub(repl, txt)  # マッチングオブジェクトをreplに渡して処理。
 	return txt
 def repl(m):  # マッチングオブジェクトの処理。
-	e = m.group(0).rstrip()
+	e = m.group(0).rstrip().lower()  # タグを小文字にする。
 	return e if e.endswith("/") else "".join([e, "/"])  # 要素が/で終わっていない時は/で閉じる。
 def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -r '<div id="tcuheader".*<\/div>'
 	import argparse
@@ -262,4 +285,6 @@ if __name__ == "__main__":
 # 	commadline()  # コマンドラインから実行する時。
 # 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
 # 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
-	inlinestyleconverter("exam1.html", r'<html>.*<\/html>')  # このスクリプトを直接実行する時。
+# 	inlinestyleconverter("exam1.html", r'<html>.*<\/html>')  # このスクリプトを直接実行する時。
+# 	inlinestyleconverter("exam1.html")  # このスクリプトを直接実行する時。
+	inlinestyleconverter("source.html") 
