@@ -10,11 +10,11 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
 	
-	stash = []
-	for m in re.finditer(r"(?is)<!DOCTYPE.*?>", s):
-		txt = m.group(0)
-		s = s.replace(txt, "", 1)
-		stash.append(txt)
+# 	stash = []
+# 	for m in re.finditer(r"(?is)<!DOCTYPE.*?>", s):(?is)<\s*?script.*?>.*?<\s*?/\s*?script\s*?>
+# 		txt = m.group(0)
+# 		s = s.replace(txt, "", 1)
+# 		stash.append(txt)
 	
 # 	m = re.match(r"<!DOCTYPE.*?>", s)  # ドキュメントタイプ宣言のマッチオブジェクトを取得する。	
 # 	if m:
@@ -244,14 +244,16 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	r, c = e.position  # エラー行と列の取得。行は1から始まる。
 	lines = txt.split("\n")  # 行のリストにする。
 	errorline = lines[r-1]  # エラー行を取得。
-	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。		
+	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。	
+	startc, endc = (c-2, c+3) if c>3 else (0, 5)
+	outputs.append("\nline {}, column {}-{}: {}\n".format(r, startc, endc-1, errorline[startc:endc]))  # まずエラー列の前後5列を出力する。	
 	maxcolmuns = 400  # 折り返す列数。	
 	if lastcolumn>maxcolmuns:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
-		firstcolumn = c - maxcolmuns/2
-		firstcolumn = 0 if firstcolumn<0 else firstcolumn
+		startcolumn = c - maxcolmuns/2
+		startcolumn = 0 if startcolumn<0 else startcolumn
 		endcolumn = c + maxcolmuns/2
 		endcolumn = lastcolumn if endcolumn>lastcolumn else endcolumn			
-		outputs.append("{}c{}to{}:  {}".format(r, firstcolumn, c-1, errorline[firstcolumn:c]))
+		outputs.append("{}c{}to{}:  {}".format(r, startcolumn, c-1, errorline[startcolumn:c]))
 		outputs.append("{}c{}to{}:  {}".format(r, c, endcolumn, errorline[c:endcolumn]))
 	else:   # エラー行が400列以下のときは上下2行も出力。
 		lastrow = len(lines) - 1
