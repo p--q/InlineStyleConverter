@@ -1,64 +1,71 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import re, sys, html, webbrowser
+from random import randrange
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element
 from itertools import permutations, product, chain
 from collections import ChainMap
 def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現が与えられていない時はすべてのノードについて実行する。
 	regex = re.compile(pattern, re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
+	stashregex = re.compile(r'(?is)<\s*?(?:(?:!DOCTYPE.*?)|(?:(script|style).*?>.+?<\s*?\/\s*?\1\s*?))>')  # ドキュメントタイプ宣言とscript要素、style要素を抽出する正規表現パターン。
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
-	
-# 	stash = []
-# 	for m in re.finditer(r"(?is)<!DOCTYPE.*?>", s):(?is)<\s*?script.*?>.*?<\s*?/\s*?script\s*?>
-# 		txt = m.group(0)
-# 		s = s.replace(txt, "", 1)
-# 		stash.append(txt)
-	
-# 	m = re.match(r"<!DOCTYPE.*?>", s)  # ドキュメントタイプ宣言のマッチオブジェクトを取得する。	
-# 	if m:
-# 		doctype = m.group(0)  # ドキュメントタイプ宣言を取得。
-# 		s = s.replace(doctype, "", 1)  # XMLに変換できないのでドキュメントタイプ宣言を削除。
-		
-		
+	replPush, replPop = stashreplCreator()  # XMLにパースする時にエラーになりやすいノードをよけておく関数を取得。
+	s = stashregex.sub(replPush, s)  # stashregexに一致するノードを除く。
 	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
 	root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
 	html = elem2html(root).replace("<root>", "", 1).rsplit("</root>", 1)[0]  # ElementオブジェクトをHTMLにする。XMLに追加した時のrootタグを削除。
-	newhtml = formatHTML(regex.sub(html, s))   # 元ファイルのHTMLをCSS入りに置換して整形する。
-	
-# 	if m:  # ドキュメントタイプ宣言があった時それを元に戻す。
-# 		newhtml = "\n".join([doctype, newhtml])
-		
-		
+	newhtml = regex.sub(html, s)   # 元ファイルのHTMLをCSS入りに置換する。
+	newhtml = re.sub(r'<(stashrepl\d+)><\/\1>', replPop, newhtml)  # 除いていたノードを戻す。
+	newhtml = formatHTML(newhtml)# HTMLを整形する。
 	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
 	print("Opening {} using the default browser.".format(outfile))
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
-		
-		
-		
-		
+def stashreplCreator():	
+	stashdic = {}	
+	def replPush(m):
+		txt =  m.group(0)
+		key = "stashrepl{}".format(randrange(10000))
+		stashdic[key] = txt
+		return "<{}/>".format(key)
+	def replPop(m):
+		return stashdic[m.group(1)]
+	return replPush, replPop
 def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
 	html = ElementTree.tostring(elem, encoding="unicode", method="html")
 	return html.replace("</wbr>", "").replace("</track>", "")  # ElementTRee.HTML_EMPTYにwbrとtrackが入っていないので、終了タグを削除。
 def formatHTML(html):  # HTMLを整形する。
-	tagregex = re.compile(r"(?is)<\/?(\w+)((\s+[a-zA-Z0-9_\-]+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。
-	repltag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
-	html = tagregex.sub(repltag, html)  # インデントを付けて整形する。
+	tagregex = re.compile(r"(?is)<\/?(\w+)(?:(?:\s+[a-zA-Z0-9_\-]+(?:\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。ただし<や>を含んだテキストノードはうまく取得できない。
+	replTag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
+	html = tagregex.sub(replTag, html)  # インデントを付けて整形する。
+	scriptregex = re.compile(r'(?is)<\s*?(script|style).*?>(.+?)<\s*?\/\s*?\1\s*?>')  # script要素、style要素のテキストノードを抽出する正規表現パターン。
+	html = scriptregex.sub(replScript, html)  # script要素とstyle要素をを整形する。
 	return html[1:] if html.startswith("\n") else html  # 先頭の改行を削除して返す。
+def replScript(m):  # マッチしたscript要素とstyle要素をを整形する。
+	txt = m.group(2).rstrip()  # テキストノードを取得。最後の改行や空白を削除する。
+	if "\n" in txt:  # 複数行ある時。
+		lines = txt.split("\n")  # テキストノードを各行のリストにする。
+		headerlength = len(lines[1]) - len(lines[1].lstrip())  # インデントの長さを取得。
+		indent = lines[1][:headerlength]  # 2行目からインデントを取得。
+		newbreak = "\n{}".format(indent)
+		tagindent = indent[:-1] if indent.endswith("\t") else indent  # 終了タグ用のインデントを作成。
+		tagtype = m.group(1)  # 要素型を取得。
+		return "".join(["<{}>\n".format(tagtype), lines[0], newbreak.join(lines[1:]), "\n", tagindent, "</{}>".format(tagtype)])  # 全行をインデントして返す。
+	return txt  # 1行しかないときはそのまま返す。
 def repltagCreator():  # 開始タグと終了タグのマッチオブジェクトを処理する関数を返す。
 	indent = "\t"  # インデント。
 	c = 0  # インデントの数。
 	starttagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
 	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr", "track"  # HTMLでは終了タグがなくなるタグ。
-	def repltag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
+	def replTag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
 		nonlocal c, starttagtype
 		txt = m.group(0)  # マッチした文字列を取得。
 		if txt.startswith("</"):  # 終了タグの時。
 			c -= 1  # インデントの数を減らす。
-			if m.group(1)!=starttagtype:  # 開始タグを同じ要素型の時。
+			if m.group(1)!=starttagtype:  # 開始タグと同じ要素型ではない時。
 				txt = "\n{}{}".format(indent*c, txt)  # タグの前で改行してインデントする。
 			starttagtype = ""  # 開始タグの要素型をリセットする。
 		elif txt.startswith("<"):  # 開始タグの時。
@@ -73,13 +80,16 @@ def repltagCreator():  # 開始タグと終了タグのマッチオブジェク�
 			if not txt.strip():  # 改行や空白だけのとき。
 				return ""  # 削除する。
 			if "\n" in txt: # テキストノードが複数行に渡る時。
-				endbreak = "" if txt.endswith("\n") else "\n"  # 最後は改行する。
-				newbreak = "\n{}".format(indent*c)  # 全行をインデントする。
-				txt = "".join([newbreak, txt.replace("\n", newbreak), endbreak, indent*(c-1)])
+				newbreak = "\n{}".format(indent*c)  # 改行とインデントを作成。
+				if starttagtype in ("script", "style"):  # scriptやstyleノードの時。
+					txt = "".join([newbreak, txt])  # 1行目だけインデントする。テキストノードすべてを取得できないときがあるので。
+				else:
+					txt = txt[:-1] if txt.endswith("\n") else txt  # 最後の改行を除く。
+					txt = "".join([newbreak, txt.replace("\n", newbreak), "\n", indent*(c-1)])  # 全行をインデントする。
 			elif not starttagtype:  # 開始タグに続くテキストノードではない時。
 				txt = "\n{}{}".format(indent*c, txt)  # 前で改行してインデントする。
 		return txt
-	return repltag
+	return replTag
 def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
 	pseudoclasses = ["active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
@@ -121,8 +131,15 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 	if csses:  # CSSが生成されたとき。
 		for attrname in attrnames:	
 			for n in root.iterfind('.//*[@{}]'.format(attrname)):
-				del n.attrib[attrname]  # CSSにした属性をXMLから削除する。		
-		root.insert(0, createElement("style", text="\n".join(csses)))  # CSSをstyleタグにしてXMLに追加。子要素の先頭に入れる必要あり。	
+				del n.attrib[attrname]  # CSSにした属性をXMLから削除する。
+		stylenode = createElement("style", text="\n".join(csses))  # CSSをstyleノードにする。
+		for t in "head", "body":
+			node = root.find(".//{}".format(t))
+			if node:
+				node.append(stylenode)
+				break
+		else:
+			root.insert(0, stylenode) 
 	else:
 		print("no CSS generated\n")
 	return root
@@ -290,9 +307,9 @@ def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -
 	args = parser.parse_args()
 	inlinestyleconverter(args.htmlfile, args.regexpattern, args=args)
 if __name__ == "__main__":
-# 	commadline()  # コマンドラインから実行する時。
+	commadline()  # コマンドラインから実行する時。
 # 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
 # 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
 # 	inlinestyleconverter("exam1.html", r'<html>.*<\/html>')  # このスクリプトを直接実行する時。
 # 	inlinestyleconverter("exam1.html")  # このスクリプトを直接実行する時。
-	inlinestyleconverter("source.html") 
+# 	inlinestyleconverter("source.html") 
