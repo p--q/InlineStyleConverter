@@ -21,7 +21,7 @@ def inlinestyleconverter(htmlfile, pattern=r".*", *, args=None):  # 正規表現
 	newhtml = formatHTML(newhtml)# HTMLを整形する。
 	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
 	print("Opening {} using the default browser.".format(outfile))
-	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。ホームフォルダに出力される。
+	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
 		f.writelines(newhtml)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
 def stashreplCreator():	
