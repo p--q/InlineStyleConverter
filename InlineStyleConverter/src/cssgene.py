@@ -36,7 +36,9 @@ def stashreplCreator():
 	return replPush, replPop
 def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
 	html = ElementTree.tostring(elem, encoding="unicode", method="html")
-	return html.replace("</wbr>", "").replace("</track>", "")  # ElementTRee.HTML_EMPTYにwbrとtrackが入っていないので、終了タグを削除。
+	emptytags = "source", "track", "wbr", "embed"  # 終了タグがついてくる空要素。
+	regex = re.compile("</{}>".format("|".join(emptytags)))
+	return regex("", html)
 def formatHTML(html):  # HTMLを整形する。
 	tagregex = re.compile(r"(?is)<\/?(\w+)(?:(?:\s+[a-zA-Z0-9_\-]+(?:\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。ただし<や>を含んだテキストノードはうまく取得できない。
 	replTag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
