@@ -38,7 +38,7 @@ def replHTMLCreator(stashdic):
 				if textnode:  # 空白文字以外のテキストノードがある時。
 					key = "stashrepl{}".format(randrange(10000))  # 置換するランダムタグを生成。
 					stashdic[key] = m
-					return "".join(["<", key, "/>"])  # 代替タグを返す。
+# 					return "".join(["<", key, "/>"])  # 代替タグを返す。
 		elif m.group(4) is not None:  # ドキュメントタイプ宣言がある時。
 			stashdic["doctype"] = m
 			return "<doctype/>"
@@ -75,9 +75,9 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 			outputs.append("{}:  {}".format(i+1, lines[i]))
 	print("\n".join(outputs))		
 if __name__ == "__main__":	
-# 	htmlfile = "source.html"
+	htmlfile = "source.html"
 # 	htmlfile = "p--q.html"
-	htmlfile = "exam1.html"
+# 	htmlfile = "exam1.html"
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
 	elem = html2elem(s)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
