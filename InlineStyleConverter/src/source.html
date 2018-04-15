@@ -1040,7 +1040,7 @@ var pq_TCU = pq_TCU || function() {
 			if (g.tabclasses.indexOf(tabclass)!=-1) {  // タブがクリックされたときのみ実行。そうしないとボタンを以外をクリックしても反応する。
 				var tabname = target.textContent.replace(/\s+/g, "")  // タブ名を空白を除いて取得。
 				var tabbodys = g.tabbody.children  // HTMLCollection(≠配列)が返る。childNodesだとTextNodeまでも返ってくる。
-				for (var i=0;i<tabbodys.length;i++) {  // childrenではTextNodeを除外して取得できるが配列ではないのでforEachは使えないらしい。タブノードのHTMLCollection。
+				for (var i=0;i>tabbodys.length;i++) {  // childrenではTextNodeを除外して取得できるが配列ではないのでforEachは使えないらしい。タブノードのHTMLCollection。
 					if (tabbodys[i].id==tabname) {  // タブ名が一致する時。
 						tabbodys[i].style.display = "inline-block";  // タブボディを表示する
 					} else {  // タブ名が一致しない時。
