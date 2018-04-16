@@ -4,7 +4,7 @@ import re, html, sys
 from random import randrange
 from xml.etree import ElementTree
 def html2elem(s):
-	regex = re.compile(r"(?is)<(?:(?:(script.*?)>(.+?)<\/\1)|(\w+).*?|(!DOCTYPE.*?))>")  # <script>要素、タグすべて、ドキュメントタイプ宣言、にマッチする正規表現オブジェクト。
+	regex = re.compile(r"(?is)<(?:(?:((script|style).*?)>(.+?)<\/\2)|(\w+).*?|(!DOCTYPE.*?))>")  # <script>要素、<style>要素、タグすべて、ドキュメントタイプ宣言、にマッチする正規表現オブジェクト。
 	stashdic = {}  # XMLパーサーでエラーになる要素を一時的に退避しておく辞書。キー:  代替タグ名、値: マッチオブジェクト。
 	replHTML = replHTMLCreator(stashdic)  # 置換する関数を取得。
 	s = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
@@ -22,24 +22,23 @@ def html2elem(s):
 		else:
 			scriptnode = ElementTree.XML("".join(["<", m.group(1), "/>"]))  # scriptノードをパーサーに読み込ませて属性の処理をする。
 			node.tag = scriptnode.tag  # 代替タグ名を戻す。
-			node.text = m.group(2)  # 代替タグにテキストノードを戻す。
+			node.text = m.group(3)  # 代替タグにテキストノードを戻す。
 			for attr in scriptnode.items():  # 代替タグに属性を戻す。
 				node.set(*attr)
 	return root
 def replHTMLCreator(stashdic):
 	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "link", "param", "source", "wbr", "track"   # ウェブブラウザで保存すると終了タグがなくなるタグ。
 	def replHTML(m):
-		if m.group(3) is not None:
-			if m.group(3).lower() in noendtags:  # 閉じられていないタグのとき。
+		if m.group(4) is not None:
+			if m.group(4).lower() in noendtags:  # 閉じられていないタグのとき。
 				if not m.group(0).endswith("/>"):
 					return "".join([m.group(0)[:-1], "/>"])  # タグを閉じて返す。
 		elif m.group(1) is not None:  # scriptタグの時。
-				textnode = m.group(2) and m.group(2).strip()  # scriptタグのテキストノードがある時空白文字を削除。
-				if textnode:  # 空白文字以外のテキストノードがある時。
+				if m.group(3) and m.group(3).strip():  # 空白文字以外のテキストノードがある時。
 					key = "stashrepl{}".format(randrange(10000))  # 置換するランダムタグを生成。
 					stashdic[key] = m
-# 					return "".join(["<", key, "/>"])  # 代替タグを返す。
-		elif m.group(4) is not None:  # ドキュメントタイプ宣言がある時。
+					return "".join(["<", key, "/>"])  # 代替タグを返す。
+		elif m.group(5) is not None:  # ドキュメントタイプ宣言がある時。
 			stashdic["doctype"] = m
 			return "<doctype/>"
 		return m.group(0)
@@ -56,9 +55,9 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	outputs.append("\nline {}, column {}-{}: {}\n".format(r, startc, endc-1, errorline[startc:endc]))  # まずエラー列の前後5列を出力する。	
 	maxcolmuns = 400  # 折り返す列数。	
 	if lastcolumn>maxcolmuns:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
-		startcolumn = c - maxcolmuns/2
+		startcolumn = c - int(maxcolmuns/2)
 		startcolumn = 0 if startcolumn<0 else startcolumn
-		endcolumn = c + maxcolmuns/2
+		endcolumn = c + int(maxcolmuns/2)
 		endcolumn = lastcolumn if endcolumn>lastcolumn else endcolumn			
 		outputs.append("{}c{}to{}:  {}".format(r, startcolumn, c-1, errorline[startcolumn:c]))
 		outputs.append("{}c{}to{}:  {}".format(r, c, endcolumn, errorline[c:endcolumn]))
