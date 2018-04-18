@@ -1,114 +1,29 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import re, sys, html, webbrowser
-from random import randrange
-from xml.etree import ElementTree
+import sys, webbrowser
 from xml.etree.ElementTree import Element
 from itertools import permutations, product, chain
 from collections import ChainMap
-def inlinestyles2CSS(s):  
-	
-	
-	
-	regex = re.compile(pattern, re.DOTALL)  # HTMLからXMLに変換する部分を抜き出す正規表現オブジェクト。
-	stashregex = re.compile(r'(?is)<\s*?(?:(?:!DOCTYPE.*?)|(?:(script|style).*?>.+?<\s*?\/\s*?\1\s*?))>')  # ドキュメントタイプ宣言とscript要素、style要素を抽出する正規表現パターン。
-	with open(htmlfile, encoding="utf-8") as f:
-		s = f.read()  # ファイルから文字列を取得する。
-	replPush, replPop = stashreplCreator()  # XMLにパースする時にエラーになりやすいノードをよけておく関数を取得。
-	s = stashregex.sub(replPush, s)  # stashregexに一致するノードを除く。
-	
-	
-	
-	root = convertToXML(s, regex)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
-	root = generateCSS(root, args)  # インラインStyle属性をCSSに変換してstyleタグを挿入。
-	html = elem2html(root).replace("<root>", "", 1).rsplit("</root>", 1)[0]  # ElementオブジェクトをHTMLにする。XMLに追加した時のrootタグを削除。
-	newhtml = regex.sub(html, s)   # 元ファイルのHTMLをCSS入りに置換する。
-	newhtml = re.sub(r'<(stashrepl\d+)><\/\1>', replPop, newhtml)  # 除いていたノードを戻す。
-	newhtml = formatHTML(newhtml)# HTMLを整形する。
-	outfile = args.output if args is not None and args.output else "converted_{}".format(htmlfile)  # 出力ファイル名。
-	print("Opening {} using the default browser.".format(outfile))
-	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
-		f.writelines(newhtml)  # ファイルに書き出し。
+from html2elem import html2elem
+from elem2html import elem2html
+from formathtml import formatHTML
+def inlinestyles2CSS(s):  # s: HTML文字列。
+	root = html2elem(s)  # HTMLをElementTreeに変換してそのルートを取得。
+	cssroot = generateCSS(root)  # インラインStyle属性をCSSに変換してstyleタグを挿入したElementTreeのrootを取得。
+	h = elem2html(cssroot)  # ElementTreeをHTMLに変換。
+	h = formatHTML(h)  # HTMLを整形。
+	filename = "cssgenerated.html"
+	print("Opening {} using the default browser.".format(filename))
+	with open(filename, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
+		f.writelines(h)  # ファイルに書き出し。
 		webbrowser.open_new_tab(f.name)  # デフォルトのブラウザの新しいタブでhtmlファイルを開く。	
-def stashreplCreator():	
-	stashdic = {}	
-	def replPush(m):
-		txt =  m.group(0)
-		key = "stashrepl{}".format(randrange(10000))
-		stashdic[key] = txt
-		return "<{}/>".format(key)
-	def replPop(m):
-		return stashdic[m.group(1)]
-	return replPush, replPop
-def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
-	html = ElementTree.tostring(elem, encoding="unicode", method="html")
-	emptytags = "source", "track", "wbr", "embed"  # 終了タグがついてくる空要素。
-	regex = re.compile("</{}>".format("|".join(emptytags)))
-	return regex("", html)
-def formatHTML(html):  # HTMLを整形する。
-	tagregex = re.compile(r"(?is)<\/?(\w+)(?:(?:\s+[a-zA-Z0-9_\-]+(?:\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>|(?<=>).+?(?=<)")  # 開始タグと終了タグ、テキストノードすべてを抽出する正規表現オブジェクト。ただし<や>を含んだテキストノードはうまく取得できない。
-	replTag = repltagCreator()  # マッチオブジェクトを処理する関数を取得。
-	html = tagregex.sub(replTag, html)  # インデントを付けて整形する。
-	scriptregex = re.compile(r'(?is)<\s*?(script|style).*?>(.+?)<\s*?\/\s*?\1\s*?>')  # script要素、style要素のテキストノードを抽出する正規表現パターン。
-	html = scriptregex.sub(replScript, html)  # script要素とstyle要素をを整形する。
-	return html[1:] if html.startswith("\n") else html  # 先頭の改行を削除して返す。
-def replScript(m):  # マッチしたscript要素とstyle要素をを整形する。
-	txt = m.group(2).rstrip()  # テキストノードを取得。最後の改行や空白を削除する。
-	if "\n" in txt:  # 複数行ある時。
-		lines = txt.split("\n")  # テキストノードを各行のリストにする。
-		headerlength = len(lines[1]) - len(lines[1].lstrip())  # インデントの長さを取得。
-		indent = lines[1][:headerlength]  # 2行目からインデントを取得。
-		newbreak = "\n{}".format(indent)
-		tagindent = indent[:-1] if indent.endswith("\t") else indent  # 終了タグ用のインデントを作成。
-		tagtype = m.group(1)  # 要素型を取得。
-		return "".join(["<{}>\n".format(tagtype), lines[0], newbreak.join(lines[1:]), "\n", tagindent, "</{}>".format(tagtype)])  # 全行をインデントして返す。
-	return txt  # 1行しかないときはそのまま返す。
-def repltagCreator():  # 開始タグと終了タグのマッチオブジェクトを処理する関数を返す。
-	indent = "\t"  # インデント。
-	c = 0  # インデントの数。
-	starttagtype = ""  # 開始タグと終了タグが対になっているかを確認するため開始タグの要素型をクロージャに保存する。
-	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr", "track"  # HTMLでは終了タグがなくなるタグ。
-	def replTag(m):  # 開始タグと終了タグのマッチオブジェクトを処理する関数。
-		nonlocal c, starttagtype
-		txt = m.group(0)  # マッチした文字列を取得。
-		if txt.startswith("</"):  # 終了タグの時。
-			c -= 1  # インデントの数を減らす。
-			if m.group(1)!=starttagtype:  # 開始タグと同じ要素型ではない時。
-				txt = "\n{}{}".format(indent*c, txt)  # タグの前で改行してインデントする。
-			starttagtype = ""  # 開始タグの要素型をリセットする。
-		elif txt.startswith("<"):  # 開始タグの時。
-			txt = "\n{}{}".format(indent*c, txt)  # 開始タグの前で改行してインデントする。
-			tagtype = m.group(1)  # 要素型を取得。
-			if tagtype in noendtags:  # 終了タグのないタグの時。 
-				starttagtype = ""  # 開始タグの要素型をリセットする。
-			else:  # 終了タグのないタグでない時。 
-				starttagtype = tagtype  # タグの要素型をクロージャに取得。
-				c += 1  # インデントの数を増やす。
-		else:  # テキストノードの時。
-			if not txt.strip():  # 改行や空白だけのとき。
-				return ""  # 削除する。
-			if "\n" in txt: # テキストノードが複数行に渡る時。
-				newbreak = "\n{}".format(indent*c)  # 改行とインデントを作成。
-				if starttagtype in ("script", "style"):  # scriptやstyleノードの時。
-					txt = "".join([newbreak, txt])  # 1行目だけインデントする。テキストノードすべてを取得できないときがあるので。
-				else:
-					txt = txt[:-1] if txt.endswith("\n") else txt  # 最後の改行を除く。
-					txt = "".join([newbreak, txt.replace("\n", newbreak), "\n", indent*(c-1)])  # 全行をインデントする。
-			elif not starttagtype:  # 開始タグに続くテキストノードではない時。
-				txt = "\n{}{}".format(indent*c, txt)  # 前で改行してインデントする。
-		return txt
-	return replTag
-def generateCSS(root, args=None):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
+def generateCSS(root):  # インラインStyle属性をもつXMLのルートを渡して、CSSのstyleタグにして返す。argsはコマンドラインの引数。
 	maxloc = 3  # 使用するロケーションステップの最大個数。
 	pseudoclasses = ["active", "checked", "default", "defined", "disabled", "empty", "enabled", "first", "first-child", \
 	"first-of-type", "focus", "focus-within", "hover", "indeterminate", "in-range", "invalid", "lang", "last-child", "last-of-type",\
 	"left", "link", "only-child", "only-of-type", "optional" , "out-of-range", "read-only", "read-write", "required", "right",\
 	"root", "scope", "target", "valid", "visited"]  # 擬似クラス。引数のあるものを除く。
 	pseudoelements = ["after", "backdrop", "before", "first-letter", "first-line", "-moz-focus-inner"]  # 擬似要素	
-	if args is not None:
-		maxloc = args.maxsteps
-		pseudoclasses.extend(args.pseudoclasses)
-		pseudoelements.extend(args.pseudoelements)
 	attrnames = list(chain(["style"], ("pseudo{}".format(i) for i in pseudoclasses), ("pseudoelem{}".format(i) for i in pseudoelements)))  # 抽出する属性名のイテレーター。	
 	parent_map = {c:p for p in root.iter() for c in p if c.tag!="br"}  # 木の、子:親の辞書を作成。brタグはstyle属性のノードとは全く関係ないので除く。
 	attrnodesdic = createNodesDic(root, attrnames)  # キー: ノードの属性、値: その属性を持つノードを返すジェネレーター、の辞書を取得。
@@ -150,16 +65,7 @@ def generateCSS(root, args=None):  # インラインStyle属性をもつXMLの�
 			root.insert(0, stylenode) 
 	else:
 		print("no CSS generated\n")
-	return root
-def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュートのtextとtailはkwargsで渡す。		
-	txt = kwargs.pop("text", None)
-	tail = kwargs.pop("tail", None)
-	elem = Element(tag, attrib, **kwargs)
-	if txt:
-		elem.text = txt
-	if tail:
-		elem.tail = tail	
-	return elem	
+	return root		
 def createNodesDic(root, attrnames):	# 属性の値をキーとする辞書に、その属性を持つノードを返すジェネレーターを取得する。
 	dics = []
 	for attrname in attrnames:
@@ -167,15 +73,6 @@ def createNodesDic(root, attrnames):	# 属性の値をキーとする辞書に�
 		attrvals = set(i.get(attrname).strip() for i in root.iterfind(attr_xpath))  # 属性をもつノードのすべてから属性の値をすべて取得する。iterfind()だと直下以外の子ノードも返る。前後の空白を除いておく。
 		dics.append({"{};{}".format(attrname, i):root.iterfind('.//*[@{}="{}"]'.format(attrname, i)) for i in attrvals})  # キー：属性の値、値: その属性のあるノードを返すジェネレーター、の辞書。キーの先頭に属性名が入っている。		
 	return ChainMap(*dics)
-def xpathToCSS(xpath):  # XPathをCSSセレクタに変換。
-	prefix = ".//"
-	if xpath.startswith(prefix):
-		xpath = xpath.replace(prefix, "", 1)
-	idw = '*[@id="'
-	if idw in xpath:
-		xpath = "#{}".format(xpath.split(idw)[-1])  # idより上階のXPathは削除する。
-	xpath = xpath.replace('*[@class="', ".").replace('[@class="', ".").replace(" ", ".").replace('"]', "").replace("//", " ").replace("/", ">")  # classを変換、複数classを結合、閉じ角括弧を削除、子孫結合子を変換、子結合子を変換。
-	return xpath.replace("[", ":nth-of-type(").replace("]", ")")
 def getStyleXPaths(root, nodes, maxloc, parent_map):	# root: ルートノード、nodes: 同じstyle属性をもつノードの集合、maxloc: 使用するロケーションパスの最大値
 	xpathnodesdic = {}  # キー: XPath, 値: XPathで取得できるノードの集合。キャッシュに使用。
 	ori_nodes = nodes.copy()  # 変更せずに確保しておく値。
@@ -252,72 +149,25 @@ def steplistsCreator(parent_map):
 			n = parent_map[n]  # 次の親ノードについて。
 		return steplists  # rootから逆向きのリスト。
 	return createStepLists
-def convertToXML(s, regex):  # s:文字列、regex: ノードを抜き出す正規表現パターン。
-	subhtml = regex.findall(s)  # XMLに変換するhtmlを取得する。
-	if not subhtml:
-		print("There is no html matching r'{}'.".format(regex.pattern), file=sys.stderr)
-		sys.exit()	
-	x = "<root>{}</root>".format(html2xml(subhtml[0])) # 最初にマッチングしたノードのみxmlにする処理をする。抜き出したhtmlにルート付ける。一つのノードにまとまっていないとjunk after document elementがでる。
-	try:
-		return ElementTree.XML(x)  # ElementTreeのElementにする。HTMLをXMLに変換して渡さないといけない。
-	except ElementTree.ParseError as e:  # XMLとしてパースできなかったとき。
-		errorLines(e, x)  # エラー部分の出力。
-def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError, txt: XML	
-	print("Failed to convert HTML to XML.", file=sys.stderr)
-	print(e, file=sys.stderr)
-	outputs = []
-	r, c = e.position  # エラー行と列の取得。行は1から始まる。
-	lines = txt.split("\n")  # 行のリストにする。
-	errorline = lines[r-1]  # エラー行を取得。
-	lastcolumn = len(errorline) - 1  # エラー行の最終列を取得。	
-	startc, endc = (c-2, c+3) if c>3 else (0, 5)
-	outputs.append("\nline {}, column {}-{}: {}\n".format(r, startc, endc-1, errorline[startc:endc]))  # まずエラー列の前後5列を出力する。	
-	maxcolmuns = 400  # 折り返す列数。	
-	if lastcolumn>maxcolmuns:   # エラー行が400列より大きいときはエラー列の前後200列を2行に分けて出力する。
-		startcolumn = c - maxcolmuns/2
-		startcolumn = 0 if startcolumn<0 else startcolumn
-		endcolumn = c + maxcolmuns/2
-		endcolumn = lastcolumn if endcolumn>lastcolumn else endcolumn			
-		outputs.append("{}c{}to{}:  {}".format(r, startcolumn, c-1, errorline[startcolumn:c]))
-		outputs.append("{}c{}to{}:  {}".format(r, c, endcolumn, errorline[c:endcolumn]))
-	else:   # エラー行が400列以下のときは上下2行も出力。
-		lastrow = len(lines) - 1
-		firstrow = r - 2
-		firstrow = 0 if firstrow<0 else firstrow
-		endrow = r + 2
-		endrow = lastrow if endrow>lastrow else endrow
-		if endrow-firstrow<5:  # 5行以下のときは5行表示する。
-			firstrow = endrow - 5
-			firstrow = 0 if firstrow<0 else firstrow
-		for i in range(firstrow, endrow+1):
-			outputs.append("{}:  {}".format(i+1, lines[i]))
-	print("\n".join(outputs))
-	sys.exit()			
-def html2xml(s):  # HTML文字参照をUnicodeに変換する。閉じられていないタグを閉じる。
-	txt = html.unescape(s)  # HTML文字参照をUnicodeに変換する。 
-	noendtags = "br", "img", "hr", "meta", "input", "embed", "area", "base", "col", "keygen", "link", "param", "source", "wbr", "track"  # ウェブブラウザで保存すると閉じられなくなるタグ。
-	noend_regex = re.compile("|".join([r"(?i)(?<=<)\s*?{}.*?(?=>)".format(i) for i in noendtags]))  # 各タグについて正規表現オブジェクトの作成。各タグの<>内のみを抽出する。大文字でも取得する。
-	txt = noend_regex.sub(repl, txt)  # マッチングオブジェクトをreplに渡して処理。
-	return txt
-def repl(m):  # マッチングオブジェクトの処理。
-	e = m.group(0).rstrip().lower()  # タグを小文字にする。
-	return e if e.endswith("/") else "".join([e, "/"])  # 要素が/で終わっていない時は/で閉じる。
-def commadline():  # /opt/libreoffice5.4/program/python cssgene.py source.html -r '<div id="tcuheader".*<\/div>'
-	import argparse
-	parser = argparse.ArgumentParser(description="convert inline style attributes of HTML file to <style> element")
-	parser.add_argument('htmlfile', help='HTML file with inline style attributes')
-	parser.add_argument('-r', '--regexpattern', default='.*', help="a regular expression pattern that extracts HTML to be converted to XML (default: '.*')")
-	parser.add_argument('-m', '--maxsteps', default=3, type=int, help='maximum number of selector elements (default: 3)')
-	parser.add_argument('-c', '--pseudoclasses', default=[], nargs='*', metavar="Pseudo-class", help='additional pseudo-classes for inline attribute')
-	parser.add_argument('-e', '--pseudoelements', default=[], nargs='*', metavar="Pseudo-element", help='additional pseudo-elements for inline attribute')
-	parser.add_argument('-o', '--output', help='output file (default: prefix converted_)')
-	parser.add_argument('-V', '--version', action='version', version='%(prog)s 0.1.0')
-	args = parser.parse_args()
-	inlinestyles2CSS(args.htmlfile, args.regexpattern, args=args)
+def xpathToCSS(xpath):  # XPathをCSSセレクタに変換。
+	prefix = ".//"
+	if xpath.startswith(prefix):
+		xpath = xpath.replace(prefix, "", 1)
+	idw = '*[@id="'
+	if idw in xpath:
+		xpath = "#{}".format(xpath.split(idw)[-1])  # idより上階のXPathは削除する。
+	xpath = xpath.replace('*[@class="', ".").replace('[@class="', ".").replace(" ", ".").replace('"]', "").replace("//", " ").replace("/", ">")  # classを変換、複数classを結合、閉じ角括弧を削除、子孫結合子を変換、子結合子を変換。
+	return xpath.replace("[", ":nth-of-type(").replace("]", ")")
+def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュートのtextとtailはkwargsで渡す。		
+	txt = kwargs.pop("text", None)
+	tail = kwargs.pop("tail", None)
+	elem = Element(tag, attrib, **kwargs)
+	if txt:
+		elem.text = txt
+	if tail:
+		elem.tail = tail	
+	return elem	
 if __name__ == "__main__":
-	commadline()  # コマンドラインから実行する時。
-# 	inlinestyleconverter("p--q.html")  # このスクリプトを直接実行する時。
-# 	inlinestyleconverter("source.html", r'<div id="tcuheader".*<\/div>' )  # htmlファイルと、sytle属性のあるノードを抽出する正規表現を渡す。なるべく<script>や<style>要素が入らないようにする。
-# 	inlinestyleconverter("exam1.html", r'<html>.*<\/html>')  # このスクリプトを直接実行する時。
-# 	inlinestyleconverter("exam1.html")  # このスクリプトを直接実行する時。
-# 	inlinestyleconverter("source.html") 
+	s = '<div id="calendar5_blogger"><div style="display:flex;flex-wrap:wrap;"><div style="flex:0 0 14%;text-align:center;"></div><div style="flex: 1 0 72%; text-align: center; cursor: pointer; color: rgb(62, 62, 62);" title="公開日と更新日を切り替える" id="title_calendar">2018年4月</div><div style="flex: 0 0 14%; text-align: center; cursor: pointer;" title="前月へ" id="right_calendar">»</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" data-remainder="0">日</div><div style="flex:1 0 14%;text-align:center;" data-remainder="1">月</div><div style="flex:1 0 14%;text-align:center;" data-remainder="2">火</div><div style="flex:1 0 14%;text-align:center;" data-remainder="3">水</div><div style="flex:1 0 14%;text-align:center;" data-remainder="4">木</div><div style="flex:1 0 14%;text-align:center;" data-remainder="5">金</div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" data-remainder="6">土</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0">1</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="1">2</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2">3</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3">4</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4">5</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5">6</div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6">7</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0">8</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="1">9</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2">10</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3">11</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4">12</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5">13</div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6">14</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0">15</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="1">16</div><div pseudohover="dummy:val;" style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2">17</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3">18</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4">19</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5">20</div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6">21</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0">22</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="1">23</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2">24</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3">25</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4">26</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5">27</div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6">28</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0">29</div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="1">30</div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5"></div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6"></div><div style="flex: 1 0 14%; text-align: center; color: rgb(255, 0, 0);" class="nopost" data-remainder="0"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="1"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="2"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="3"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="4"></div><div style="flex:1 0 14%;text-align:center;" class="nopost" data-remainder="5"></div><div style="flex: 1 0 14%; text-align: center; color: rgb(0, 51, 255);" class="nopost" data-remainder="6"></div><div style="flex: 1 0 14%; text-align: center; display: none; color: rgb(255, 0, 0);" class="nopost" data-remainder="0"></div><div style="flex: 1 0 14%; text-align: center; display: none;" class="nopost" data-remainder="1"></div><div style="flex: 1 0 14%; text-align: center; display: none;" class="nopost" data-remainder="2"></div><div style="flex: 1 0 14%; text-align: center; display: none;" class="nopost" data-remainder="3"></div><div style="flex: 1 0 14%; text-align: center; display: none;" class="nopost" data-remainder="4"></div><div style="flex: 1 0 14%; text-align: center; display: none;" class="nopost" data-remainder="5"></div><div style="flex: 1 0 14%; text-align: center; display: none; color: rgb(0, 51, 255);" class="nopost" data-remainder="6"></div></div><div style="display:flex;flex-direction:column;padding-top:5px;text-align:center;"></div></div>'	
+	inlinestyles2CSS(s)
+	

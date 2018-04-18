@@ -3,7 +3,7 @@
 from xml.etree import ElementTree
 def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
 	doctypetxt = ""
-	doctype = root.find(".//doctype")  # ドキュメントタイプ宣言を入れたノードを取得。
+	doctype = elem.find(".//doctype")  # ドキュメントタイプ宣言を入れたノードを取得。
 	if doctype is not None:  # ドキュメントタイプ宣言を入れたノードが取得出来た時。
 		doctypetxt = doctype.text  # ドキュメントタイプ宣言を取得。
 		elem.find(".//doctype/..").remove(doctype)  # doctypeノードを削除。
