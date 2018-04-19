@@ -1,6 +1,6 @@
 # InlineStyleConverter
 
-# Convert HTML strings to Element objects
+## Convert HTML strings to Element objects
 
 <a href="https://github.com/p--q/InlineStyleConverter/blob/master/InlineStyleConverter/src/html2elem.py">html2elem.py</a>
 
