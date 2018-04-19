@@ -4,15 +4,15 @@ import sys, webbrowser
 from xml.etree.ElementTree import Element
 from itertools import permutations, product, chain
 from collections import ChainMap
-from html2elem import html2elem
-from elem2html import elem2html
-from formathtml import formatHTML
+from html2elem import html2elem  # HTMLをElementオブジェクトにして返す関数。
+from elem2html import elem2html  # ElementオブジェクトからHTMLを返す関数。
+from formathtml import formatHTML  # HTMLを整形する関数。
 def inlinestyles2CSS(s):  # s: HTML文字列。
 	root = html2elem(s)  # HTMLをElementTreeに変換してそのルートを取得。
 	cssroot = generateCSS(root)  # インラインStyle属性をCSSに変換してstyleタグを挿入したElementTreeのrootを取得。
 	h = elem2html(cssroot)  # ElementTreeをHTMLに変換。
 	h = formatHTML(h)  # HTMLを整形。
-	filename = "cssgenerated.html"
+	filename = "cssgenerated.html"  # HTMLを書き出すファイル名。
 	print("Opening {} using the default browser.".format(filename))
 	with open(filename, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
 		f.writelines(h)  # ファイルに書き出し。
