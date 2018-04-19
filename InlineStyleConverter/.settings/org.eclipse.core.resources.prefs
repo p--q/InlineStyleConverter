@@ -1,10 +1,7 @@
 eclipse.preferences.version=1
-encoding//src/cssgene.py=utf-8
 encoding//src/elem2html.py=utf-8
-encoding//src/exam1.py=utf-8
 encoding//src/formathtml.py=utf-8
 encoding//src/html2elem.py=utf-8
-encoding//src/inlinestyleconverter.py=utf-8
 encoding//src/inlinestyles2CSS.py=utf-8
 encoding//src/parseex.py=utf-8
 encoding//src/parseex2.py=utf-8
