@@ -1,0 +1,41 @@
+
+b'
+<root>
+	<div>
+		<div>
+			<div />
+			<div [ />
+		</div>
+		<div [>
+			<div />
+			<div [ />
+		</div[2]>
+	</div>
+	<div [>
+		<div>
+			<div />
+			<div [ />
+		</div>
+		<div [>
+			<div />
+			<div [ />
+		</div[2]>
+	</div[1]>
+	<[@id="tcuheader"]>
+	<div>
+		<div />
+		<div [ />
+	</div>
+	<div [>
+		<div />
+		<div [ />
+	</div[2]>
+	</[@id="tcuheader"]>
+</root>
+'
+
+<root>
+	<div />
+	<div [ />
+	<[@id="tcuheader"] />
+</root>
