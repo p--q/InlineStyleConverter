@@ -4,56 +4,11 @@
 		<meta charset="utf-8">
 		<title>Calendar</title>
 		<style>
-			div:nth-of-type(14), div:nth-of-type(15), div:nth-of-type(26), div:nth-of-type(27), div:nth-of-type(28), div:nth-of-type(5), div:nth-of-type(16), div:nth-of-type(44), div:nth-of-type(6), div:nth-of-type(29), div:nth-of-type(47), div:nth-of-type(30), div:nth-of-type(48), div:nth-of-type(7), div:nth-of-type(19), div:nth-of-type(8), div:nth-of-type(20), div:nth-of-type(33), div:nth-of-type(9), div:nth-of-type(21), div:nth-of-type(49), div:nth-of-type(34), div:nth-of-type(50), div:nth-of-type(35), div:nth-of-type(36), div:nth-of-type(12), div:nth-of-type(51), div:nth-of-type(13), div:nth-of-type(41), div:nth-of-type(42), div:nth-of-type(22), div:nth-of-type(23), div:nth-of-type(43), div:nth-of-type(37) {
-				flex:1 0 14%;
-				text-align:center;
-			}
-			
-			#calendar5_blogger>div:nth-of-type(1) {
-				display:flex;
-				flex-wrap:wrap;
-			}
-			
-			div:nth-of-type(27):hover {
-				dummy:val;
-			}
-			
-			div:nth-of-type(53) {
-				flex: 1 0 14%;
-				 text-align: center;
-				 display: none;
-				 color: rgb(255, 0, 0);
-			}
-			
-			div:nth-of-type(55), div:nth-of-type(56), div:nth-of-type(57), div:nth-of-type(58), div:nth-of-type(54) {
-				flex: 1 0 14%;
-				 text-align: center;
-				 display: none;
-			}
-			
 			#title_calendar {
 				flex: 1 0 72%;
 				 text-align: center;
 				 cursor: pointer;
 				 color: rgb(62, 62, 62);
-			}
-			
-			div:nth-of-type(59) {
-				flex: 1 0 14%;
-				 text-align: center;
-				 display: none;
-				 color: rgb(0, 51, 255);
-			}
-			
-			div div>div:nth-of-type(1) {
-				flex:0 0 14%;
-				text-align:center;
-			}
-			
-			div:nth-of-type(3) {
-				flex: 0 0 14%;
-				 text-align: center;
-				 cursor: pointer;
 			}
 			
 			#calendar5_blogger>div:nth-of-type(2) {
@@ -63,16 +18,61 @@
 				text-align:center;
 			}
 			
-			div:nth-of-type(17), div:nth-of-type(52), div:nth-of-type(10), div:nth-of-type(45), div:nth-of-type(31), div:nth-of-type(24), div:nth-of-type(38) {
+			div:nth-of-type(53) {
+				flex: 1 0 14%;
+				 text-align: center;
+				 display: none;
+				 color: rgb(255, 0, 0);
+			}
+			
+			div:nth-of-type(27):hover {
+				dummy:val;
+			}
+			
+			div:nth-of-type(59) {
+				flex: 1 0 14%;
+				 text-align: center;
+				 display: none;
+				 color: rgb(0, 51, 255);
+			}
+			
+			div:nth-of-type(54), div:nth-of-type(55), div:nth-of-type(56), div:nth-of-type(57), div:nth-of-type(58) {
+				flex: 1 0 14%;
+				 text-align: center;
+				 display: none;
+			}
+			
+			div:nth-of-type(40), div:nth-of-type(11), div:nth-of-type(25), div:nth-of-type(4), div:nth-of-type(18), div:nth-of-type(32), div:nth-of-type(39), div:nth-of-type(46) {
+				flex: 1 0 14%;
+				 text-align: center;
+				 color: rgb(255, 0, 0);
+			}
+			
+			div:nth-of-type(10), div:nth-of-type(24), div:nth-of-type(17), div:nth-of-type(31), div:nth-of-type(38), div:nth-of-type(45), div:nth-of-type(52) {
 				flex: 1 0 14%;
 				 text-align: center;
 				 color: rgb(0, 51, 255);
 			}
 			
-			div:nth-of-type(25), div:nth-of-type(39), div:nth-of-type(40), div:nth-of-type(32), div:nth-of-type(46), div:nth-of-type(11), div:nth-of-type(4), div:nth-of-type(18) {
-				flex: 1 0 14%;
+			div:nth-of-type(3) {
+				flex: 0 0 14%;
 				 text-align: center;
-				 color: rgb(255, 0, 0);
+				 cursor: pointer;
+			}
+			
+			div:nth-of-type(28), div:nth-of-type(29), div:nth-of-type(30), div:nth-of-type(33), div:nth-of-type(34), div:nth-of-type(35), div:nth-of-type(36), div:nth-of-type(37), div:nth-of-type(5), div:nth-of-type(6), div:nth-of-type(7), div:nth-of-type(8), div:nth-of-type(12), div:nth-of-type(41), div:nth-of-type(13), div:nth-of-type(14), div:nth-of-type(42), div:nth-of-type(15), div:nth-of-type(16), div:nth-of-type(43), div:nth-of-type(44), div:nth-of-type(19), div:nth-of-type(20), div:nth-of-type(21), div:nth-of-type(22), div:nth-of-type(23), div:nth-of-type(47), div:nth-of-type(48), div:nth-of-type(51), div:nth-of-type(49), div:nth-of-type(26), div:nth-of-type(50), div:nth-of-type(9), div:nth-of-type(27) {
+				flex:1 0 14%;
+				text-align:center;
+			}
+			
+			#calendar5_blogger>div:nth-of-type(1) {
+				display:flex;
+				flex-wrap:wrap;
+			}
+			
+			div div>div:nth-of-type(1) {
+				flex:0 0 14%;
+				text-align:center;
 			}
 		</style>
 	</head>
