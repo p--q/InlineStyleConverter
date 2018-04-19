@@ -33,4 +33,7 @@ if __name__ == "__main__":
 	print("\nElementTree to HTML\n")
 # 	print(h) 
 	from formathtml import  formatHTML
+	import re
+	regex = re.compile(r'')
+	h = h.replace(" ", "").replace()
 	print(formatHTML(h))
