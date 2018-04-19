@@ -3,10 +3,10 @@
 from xml.etree import ElementTree
 def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
 	doctypetxt = ""
-	doctype = root.find(".//doctype")  # ドキュメントタイプ宣言を入れたノードを取得。
-	if doctype is not None:
-		doctypetxt = doctype.text
-		elem.find(".//doctype/..").remove(doctype) 
+	doctype = elem.find(".//doctype")  # ドキュメントタイプ宣言を入れたノードを取得。
+	if doctype is not None:  # ドキュメントタイプ宣言を入れたノードが取得出来た時。
+		doctypetxt = doctype.text  # ドキュメントタイプ宣言を取得。
+		elem.find(".//doctype/..").remove(doctype)  # doctypeノードを削除。
 	h = ElementTree.tostring(elem, encoding="unicode", method="html")
 	emptytags = "source", "track", "wbr", "embed", "root"  # 終了タグがついてくる空要素などの終了タグを削除。
 	for tag in emptytags:
@@ -15,25 +15,20 @@ def elem2html(elem):  # ElementオブジェクトをHTMLにして返す。
 	return "".join([doctypetxt, h])
 if __name__ == "__main__":	
 	from html2elem import html2elem
-	xml = """\
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html>
+	from formathtml import formatHTML
+	s = """\
+<!DOCTYPE html><html>
   <head>
     <meta charset="utf-8">
-    <title>My test<wbr> page</title>
+    <title>My test<br> page</title>
   </head>
   <body>
     <img src="images/firefox-icon.png" alt="My test image">
   </body>
 </html>	"""
-# 	xml = xml.replace("\n", "")
-	root = html2elem(xml)  # ElementTreeのルートを取得。
+	root = html2elem(s)  # ElementTreeのルートを取得。
 	print("\nElementTree\n")
 	print(ElementTree.tostring(root, encoding="unicode"))
 	h = elem2html(root)  # ルートの子孫をHTMLの文字列に変換。	
 	print("\nElementTree to HTML\n")
-# 	print(h) 
-	from formathtml import  formatHTML
-	import re
-	regex = re.compile(r'')
-	h = h.replace(" ", "").replace()
-	print(formatHTML(h))
+	print(formatHTML(h, reset=True))
