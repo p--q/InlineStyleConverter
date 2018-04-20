@@ -162,9 +162,9 @@ def createElement(tag, attrib={},  **kwargs):  # ET.Elementのアトリビュー
 	txt = kwargs.pop("text", None)
 	tail = kwargs.pop("tail", None)
 	elem = Element(tag, attrib, **kwargs)
-	if txt:
+	if txt is not None:
 		elem.text = txt
-	if tail:
+	if tail is not None:
 		elem.tail = tail	
 	return elem	
 if __name__ == "__main__":
