@@ -56,14 +56,10 @@ def repltagCreator(indentunit):  # 開始タグと終了タグのマッチオブ
 		return txt
 	return replTag
 if __name__ == "__main__":
-# 	htmlfile = "p--q.html"
-# 	htmlfile = "source.html"
-# 	htmlfile = "tem.html"
-	htmlfile = "exam1.html"
+	htmlfile = "source.html"
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
 	s = formatHTML(s)	
 	outfile = "formatted_{}".format(htmlfile)  # 出力ファイル名。
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
 		f.writelines(s)  # ファイルに書き出し。
-# 	print(s)
