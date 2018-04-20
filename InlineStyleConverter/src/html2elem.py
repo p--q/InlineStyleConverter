@@ -75,11 +75,9 @@ def errorLines(e, txt):  # エラー部分の出力。e: ElementTree.ParseError,
 	print("\n".join(outputs))		
 if __name__ == "__main__":	
 	htmlfile = "source.html"
-# 	htmlfile = "p--q.html"
-# 	htmlfile = "exam1.html"
 	with open(htmlfile, encoding="utf-8") as f:
 		s = f.read()  # ファイルから文字列を取得する。
-	elem = html2elem(s)  # ファイルから正規表現で抽出したHTMLをXMLにしてそのルートを取得。
+	elem = html2elem(s)  # HTMLをXMLにしてそのルートを取得。
 	s = ElementTree.tostring(elem, encoding="unicode")
 	outfile = "".join([*htmlfile.split(".")[:-1], ".xml"])  # 出力ファイル名。
 	with open(outfile, 'w', encoding='utf-8') as f:  # htmlファイルをUTF-8で作成。すでにあるときは上書き。
